@@ -1,5 +1,10 @@
-import { chat, listModels, pickModel } from './llm.js';
+import { chat, listModels, pickModel, serverBase } from './llm.js';
 import { toolsFor, runTool, initScheduler, activeTimers, store } from './tools.js';
+import { createBuddy, KINDS } from './buddy.js';
+import { NATIVE, IS_BUBBLE, NativeSpeechRecognition, nativeSpeak, nativeStopSpeaking, nativeSync } from './native.js';
+
+if (IS_BUBBLE) document.documentElement.classList.add('bubble-mode');
+if (NATIVE) document.documentElement.classList.add('in-app');
 
 // ------------------------------------------------------------------ settings
 
@@ -14,19 +19,87 @@ const DEFAULTS = {
   lang: navigator.language || 'en-US',
   voiceURI: '', rate: 1.05, speak: true, followUp: true,
   userName: '', contacts: '', musicApp: 'youtube', autoOpen: true,
+  buddyKind: 'robot', buddySound: true, serverUrl: '',
 };
 const settings = { ...DEFAULTS, ...store.get('settings', {}) };
 const saveSettings = () => {
   const { _server, ...rest } = settings;
   store.set('settings', rest);
+  // Tell the floating bubble (a separate WebView) to pick up the new settings.
+  if (NATIVE && !IS_BUBBLE) NATIVE.settingsChanged();
 };
 
 // ------------------------------------------------------------------ DOM
 
 const $ = (s) => document.querySelector(s);
-const log = $('#log'), orb = $('#orb'), live = $('#live'), statusEl = $('#status');
+const log = $('#log'), live = $('#live'), statusEl = $('#status');
 const textForm = $('#text-form'), textInput = $('#text-input');
 const wakeBtn = $('#btn-wake'), dialog = $('#settings');
+
+// ------------------------------------------------------------------ the floating companion
+
+const buddyEl = document.createElement('div');
+buddyEl.id = 'buddy';
+document.body.append(buddyEl);
+const buddy = createBuddy(buddyEl, {
+  kind: settings.buddyKind,
+  sound: settings.buddySound,
+  onTap: () => onTalk(),
+  onDoubleTap: () => {
+    if (IS_BUBBLE) NATIVE?.openApp();            // bubble → open the full Jarvis app
+    else { textForm.hidden = false; textInput.focus(); }
+  },
+  onCancel: () => { stopRec(); stopSpeaking(); abort?.abort(); setState('idle'); },
+  onCaption: (shown) => { if (IS_BUBBLE) NATIVE?.setExpanded(!!shown); },
+  // In the Android bubble the app moves the whole window natively; here we move the element.
+  onDrag: IS_BUBBLE ? null : dragBuddy,
+});
+
+// Android tells the bubble which screen edge it is docked to, so the caption opens inward.
+window.__jarvisSide = (side) => buddyEl.classList.toggle('on-right', side === 'right');
+window.__jarvisDrag = (phase) => { if (phase === 'start') buddy.say(''); else buddy.react('boing'); };
+// Reminders fired by Android while the bubble is running: say them out loud.
+window.__jarvisAlert = (title, body) => {
+  buddy.react('wake');
+  if (state === 'idle' || state === 'wake') {
+    stopRec();
+    speak(`${title}. ${body}`).then(() => { if (state === 'speaking') setState('idle'); resumeWake(); });
+  }
+};
+// Native "tap to talk" from the notification / quick-settings tile.
+window.__jarvisTalk = () => onTalk();
+
+let dragFrom = null;
+function placeBuddy(x, y, snap) {
+  const size = buddyEl.offsetWidth || 68;
+  const maxX = window.innerWidth - size - 8, maxY = window.innerHeight - size - 8;
+  x = Math.max(8, Math.min(maxX, x));
+  y = Math.max(8 + (document.querySelector('.top')?.offsetHeight || 0), Math.min(maxY, y));
+  if (snap) x = x + size / 2 < window.innerWidth / 2 ? 8 : maxX;
+  buddyEl.classList.toggle('snap', !!snap);
+  buddyEl.style.left = `${x}px`;
+  buddyEl.style.top = `${y}px`;
+  buddyEl.classList.toggle('on-right', x + size / 2 > window.innerWidth / 2);
+  return { x, y };
+}
+function dragBuddy(phase, dx, dy) {
+  if (!dragFrom) dragFrom = { x: buddyEl.offsetLeft, y: buddyEl.offsetTop };
+  if (phase === 'move') placeBuddy(dragFrom.x + dx, dragFrom.y + dy, false);
+  else {
+    const pos = placeBuddy(dragFrom.x + dx, dragFrom.y + dy, true);
+    store.set('buddyPos', { rx: pos.x / window.innerWidth, ry: pos.y / window.innerHeight });
+    dragFrom = null;
+  }
+}
+function restoreBuddy() {
+  if (IS_BUBBLE) return;
+  const p = store.get('buddyPos', null);
+  const dock = document.querySelector('.dock')?.offsetHeight || 150;
+  if (p) placeBuddy(p.rx * window.innerWidth, p.ry * window.innerHeight, true);
+  else placeBuddy(window.innerWidth, window.innerHeight - dock - 90, true);
+}
+window.addEventListener('resize', restoreBuddy);
+requestAnimationFrame(restoreBuddy);
 
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function scrollDown() { log.scrollTop = log.scrollHeight; }
@@ -78,7 +151,7 @@ let state = 'idle';
 const STATUS = { idle: 'Tap to speak', wake: `Say “${settings.wakeWord}”`, listening: 'Listening…', thinking: 'Thinking…', speaking: 'Speaking — tap to stop' };
 function setState(s) {
   state = s;
-  orb.dataset.state = s;
+  buddy.setState(s);
   statusEl.textContent = s === 'wake' ? `Say “${cap(settings.wakeWord)}…”` : STATUS[s];
   if (s === 'idle' || s === 'thinking') live.textContent = '';
 }
@@ -86,7 +159,7 @@ const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 
 // ------------------------------------------------------------------ speech recognition
 
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SR = NATIVE ? NativeSpeechRecognition : (window.SpeechRecognition || window.webkitSpeechRecognition);
 let rec = null;
 let wakeOn = false;
 let awaitingCommand = false, awaitTimer = null;
@@ -119,7 +192,10 @@ function startRec(mode) { // mode: 'command' | 'wake'
       const res = e.results[i];
       if (res.isFinal) final += res[0].transcript; else interim += res[0].transcript;
     }
-    if (mode === 'command' || awaitingCommand || containsWake(interim)) live.textContent = (final || interim).trim();
+    if (mode === 'command' || awaitingCommand || containsWake(interim)) {
+      live.textContent = (final || interim).trim();
+      if (IS_BUBBLE && live.textContent) buddy.say(live.textContent, 0);
+    }
     if (final.trim()) { gotFinal = true; onFinal(final.trim(), mode); }
   };
   r.onerror = (e) => {
@@ -165,16 +241,26 @@ function onFinal(text, mode) {
   awaitingCommand = true;
   setState('listening');
   live.textContent = 'Yes?';
+  buddy.say('Yes?', 9000);
   clearTimeout(awaitTimer);
   awaitTimer = setTimeout(() => { awaitingCommand = false; if (state === 'listening') setState(wakeOn ? 'wake' : 'idle'); live.textContent = ''; }, 9000);
 }
 
+const visible = () => IS_BUBBLE || !document.hidden;
 function resumeWake() {
-  if (!wakeOn || rec || state === 'thinking' || state === 'speaking' || document.hidden) return;
-  setTimeout(() => { if (wakeOn && !rec && state !== 'thinking' && state !== 'speaking' && !document.hidden) startRec('wake'); }, 250);
+  if (!wakeOn || rec || state === 'thinking' || state === 'speaking' || !visible()) return;
+  setTimeout(() => { if (wakeOn && !rec && state !== 'thinking' && state !== 'speaking' && visible()) startRec('wake'); }, NATIVE ? 400 : 250);
 }
 
 async function setWake(on) {
+  // While the floating bubble runs, it does the listening; the full app just flips the setting.
+  if (NATIVE && !IS_BUBBLE && nativeSync('bubbleState')?.running) {
+    store.set('wake', on);
+    wakeBtn.setAttribute('aria-pressed', String(on));
+    NATIVE.settingsChanged();
+    addMsg('assistant', on ? `Wake word on: say “${cap(settings.wakeWord)}” any time, even in other apps.` : 'Wake word off.');
+    return;
+  }
   wakeOn = on;
   wakeBtn.setAttribute('aria-pressed', String(on));
   if (on) {
@@ -190,6 +276,7 @@ async function setWake(on) {
 }
 
 document.addEventListener('visibilitychange', async () => {
+  if (IS_BUBBLE) return;
   if (document.hidden) { if (state === 'wake') { stopRec(); setState('idle'); } return; }
   if (wakeOn) {
     try { wakeLock = await navigator.wakeLock?.request('screen'); } catch { }
@@ -201,19 +288,31 @@ document.addEventListener('visibilitychange', async () => {
 
 let voices = [];
 function loadVoices() {
-  voices = speechSynthesis?.getVoices?.() || [];
+  voices = NATIVE ? (nativeSync('voices') || []).map(v => ({ voiceURI: v.name, name: v.name, lang: v.lang }))
+    : (window.speechSynthesis?.getVoices?.() || []);
   const sel = $('#voice-select');
   const cur = settings.voiceURI;
   sel.innerHTML = '<option value="">Default</option>' + voices
     .map(v => `<option value="${esc(v.voiceURI)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('');
   sel.value = cur;
 }
-if ('speechSynthesis' in window) {
+if (NATIVE) setTimeout(loadVoices, 1500);
+else if ('speechSynthesis' in window) {
   loadVoices();
   speechSynthesis.onvoiceschanged = loadVoices;
 }
 
-function speak(text) {
+function stopSpeaking() {
+  if (NATIVE) nativeStopSpeaking(); else window.speechSynthesis?.cancel();
+}
+
+async function speak(text) {
+  if (text) buddy.say(text);
+  if (NATIVE && settings.speak && text) {
+    setState('speaking');
+    await nativeSpeak(text.replace(/[*_`#>]/g, '').replace(/https?:\/\/\S+/g, 'the link'), voices.find(v => v.voiceURI === settings.voiceURI)?.lang || settings.lang, settings.rate, settings.voiceURI);
+    return;
+  }
   return new Promise((resolve) => {
     if (!settings.speak || !text || !('speechSynthesis' in window)) return resolve();
     speechSynthesis.cancel();
@@ -295,7 +394,7 @@ async function handleCommand(text) {
 
   // Instant local commands (no AI round-trip)
   if (/^(stop|cancel|never ?mind|shut up|quiet)\.?$/i.test(text)) {
-    speechSynthesis?.cancel(); setState('idle'); resumeWake(); return;
+    stopSpeaking(); buddy.say(''); setState('idle'); resumeWake(); return;
   }
 
   const startLen = history.length;
@@ -326,6 +425,7 @@ async function handleCommand(text) {
     if (e.name === 'AbortError') { history.length = startLen; setState('idle'); trimHistory(); resumeWake(); return; }
     history.length = startLen; // drop the failed turn so the conversation stays valid
     addMsg('error', e.message || String(e));
+    buddy.react('sad');
     reply = 'Sorry, I ran into a problem reaching the AI. ' + (e.message?.includes('key') ? 'Please check your API key in settings.' : '');
     trimHistory();
     await speak(reply);
@@ -348,7 +448,9 @@ function fireAlert(title, body) {
   chime(988); setTimeout(() => chime(1318), 220); setTimeout(() => chime(988), 440);
   navigator.vibrate?.([300, 150, 300, 150, 600]);
   ui.card(`⏰ ${title}`, body, []);
-  if (window.Notification?.permission === 'granted') {
+  buddy.react('wake');
+  if (NATIVE) NATIVE.notify(title, body);
+  else if (window.Notification?.permission === 'granted') {
     navigator.serviceWorker?.ready.then(reg => reg.showNotification(title, { body, icon: 'icons/icon-192.png', vibrate: [300, 150, 300] }))
       .catch(() => { try { new Notification(title, { body }); } catch { } });
   }
@@ -373,15 +475,14 @@ initScheduler({ alert: fireAlert });
 
 // ------------------------------------------------------------------ controls
 
-orb.addEventListener('click', () => {
+function onTalk() {
   // A tap also "unlocks" audio on mobile browsers.
-  if (state === 'speaking') { speechSynthesis.cancel(); setState('idle'); resumeWake(); return; }
+  if (state === 'speaking') { stopSpeaking(); buddy.say(''); setState('idle'); resumeWake(); return; }
   if (state === 'thinking') { abort?.abort(); return; }
   if (state === 'listening') { stopRec(); awaitingCommand = false; setState('idle'); resumeWake(); return; }
   awaitingCommand = false;
-  chime(660);
   startRec('command');
-});
+}
 
 wakeBtn.addEventListener('click', () => setWake(!wakeOn));
 
@@ -393,7 +494,7 @@ textForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const t = textInput.value; textInput.value = '';
   if (state === 'thinking') return;
-  stopRec(); speechSynthesis?.cancel();
+  stopRec(); stopSpeaking();
   handleCommand(t);
 });
 log.addEventListener('click', (e) => {
@@ -430,7 +531,27 @@ form.addEventListener('input', (e) => {
   if (key === 'provider') syncForm();
   updateModelLabel();
   if (key === 'wakeWord') setState(state);
+  if (key === 'buddyKind') { buddy.setKind(settings.buddyKind); buddy.react('hello'); NATIVE?.settingsChanged(); }
+  if (key === 'buddySound') buddy.setSound(settings.buddySound);
+  if (key === 'serverUrl') detectServer();
 });
+
+$('#buddy-kind').innerHTML = Object.entries(KINDS).map(([k, label]) => `<option value="${k}">${label}</option>`).join('');
+
+// ---- Android-only controls
+if (NATIVE) {
+  $('#btn-perms').addEventListener('click', () => NATIVE.requestPermissions());
+  $('#btn-battery').addEventListener('click', () => NATIVE.requestBackground());
+  $('#btn-bubble-start').addEventListener('click', () => {
+    const r = nativeSync('startBubble');
+    if (r && !r.ok && r.reason) alert(r.reason);
+    else { dialog.close(); setWake(false); }
+  });
+  $('#btn-bubble-stop').addEventListener('click', () => NATIVE.stopBubble());
+  const boot = $('#chk-boot');
+  boot.checked = !!nativeSync('bubbleState')?.onBoot;
+  boot.addEventListener('change', () => NATIVE.setStartOnBoot(String(boot.checked)));
+}
 
 form.addEventListener('click', async (e) => {
   const load = e.target.closest('[data-load]');
@@ -487,7 +608,8 @@ $('#btn-settings').addEventListener('click', () => { syncForm(); dialog.showModa
 async function detectServer() {
   const info = $('#server-info');
   try {
-    const r = await fetch('api/config', { cache: 'no-store' });
+    if (NATIVE && !settings.serverUrl) throw 0;
+    const r = await fetch(`${serverBase(settings)}/api/config`, { cache: 'no-store' });
     if (!r.ok) throw 0;
     settings._server = await r.json();
     const s = settings._server;
@@ -495,7 +617,7 @@ async function detectServer() {
     info.innerHTML = `<span class="ok">Jarvis server connected.</span> Keys on server — Gemini ${tick(s.gemini)}, Grok ${tick(s.xai)}, OpenJarvis ${tick(s.openjarvis)}${s.tokenRequired ? ' (token required)' : ''}.`;
   } catch {
     settings._server = null;
-    info.textContent = 'No Jarvis server detected (static hosting). Enter your API key(s) below.';
+    info.textContent = NATIVE ? 'Running in the Android app. Enter your API key(s) below, or a Jarvis server URL.' : 'No Jarvis server detected (static hosting). Enter your API key(s) below.';
   }
 }
 
@@ -509,12 +631,15 @@ async function boot() {
     addMsg('assistant', 'Welcome! Open Settings (top right) and add your Gemini or Grok API key to bring me online.');
   }
   if (!SR) addMsg('error', 'This browser has no speech recognition. Use Chrome on Android for voice; typing still works.');
-  if (store.get('wake', false)) {
+  if (NATIVE && !IS_BUBBLE && nativeSync('bubbleState')?.running) wakeBtn.setAttribute('aria-pressed', String(!!store.get('wake', false)));
+  if (store.get('wake', false) && (IS_BUBBLE || (NATIVE && !nativeSync('bubbleState')?.running))) {
+    setWake(true);
+  } else if (store.get('wake', false) && !NATIVE) {
     // Browsers require a tap before the mic starts; arm the wake word on the first tap anywhere.
     statusEl.textContent = 'Tap anywhere to resume wake word';
     document.addEventListener('pointerdown', () => { if (!wakeOn) setWake(true); }, { once: true, capture: true });
   }
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
+  if (!NATIVE && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
   // Home-screen shortcut "Talk to Jarvis" opens with ?listen=1
   if (new URLSearchParams(location.search).has('listen') && SR) {
     window.history.replaceState(null, '', location.pathname);

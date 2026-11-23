@@ -6,6 +6,8 @@
 //   { role: 'assistant', content, toolCalls: [{ id, name, args }], geminiParts? }
 //   { role: 'tool', toolCallId, name, content }
 
+import { NATIVE, nativeFetch } from './native.js';
+
 const DIRECT = {
   gemini: 'https://generativelanguage.googleapis.com',
   xai: 'https://api.x.ai',
@@ -22,9 +24,13 @@ function useServer(s, backend) {
   return false;
 }
 
+export function serverBase(s) {
+  return (s.serverUrl || location.origin).replace(/\/+$/, '');
+}
+
 function endpoint(s, backend) {
   if (useServer(s, backend)) {
-    return { base: `${location.origin}/api/${backend}`, viaServer: true };
+    return { base: `${serverBase(s)}/api/${backend}`, viaServer: true };
   }
   if (backend === 'openjarvis') {
     if (!s.ojUrl) throw new Error('Set the OpenJarvis URL in settings, or set OPENJARVIS_URL on the Jarvis server.');
@@ -49,7 +55,7 @@ function headersFor(s, backend, viaServer) {
 async function request(url, opts) {
   let res;
   try {
-    res = await fetch(url, opts);
+    res = await (NATIVE ? nativeFetch(url, opts) : fetch(url, opts));
   } catch (e) {
     if (e.name === 'AbortError') throw e;
     throw new Error(`Network error reaching ${new URL(url).host}. ${location.protocol === 'https:' && url.startsWith('http:') ? 'An HTTPS page cannot call an HTTP address; route it through the Jarvis server.' : 'Check your connection, or use the Jarvis server as a proxy.'}`);

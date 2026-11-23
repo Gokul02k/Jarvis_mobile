@@ -12,6 +12,7 @@
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="buddy.css">
 </head>
 <body>
   <header class="top">
@@ -30,7 +31,8 @@
   <main id="log" aria-live="polite">
     <div class="welcome" id="welcome">
       <p class="welcome-title">Good to see you.</p>
-      <p>Tap the orb and speak, or turn on <b>Wake word</b> and say <b>“Jarvis…”</b></p>
+      <p><b>Tap</b> your little Jarvis buddy and speak, or turn on <b>Wake word</b> and say <b>“Jarvis…”</b></p>
+      <p class="tips">Drag it anywhere · hold to pet · double-tap to type · boop its nose 🤧</p>
       <ul class="examples">
         <li>“What's the weather tomorrow?”</li>
         <li>“Call Mom”</li>
@@ -56,16 +58,12 @@
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M8 16h8M10 13h4"/></svg>
         <span>Type</span>
       </button>
-      <button id="orb" class="orb" data-state="idle" aria-label="Talk to Jarvis">
-        <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
-        <span class="core"></span>
-      </button>
+      <p id="status" class="status">Tap to speak</p>
       <button id="btn-wake" class="side-btn" aria-pressed="false" aria-label="Wake word">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>
         <span>Wake word</span>
       </button>
     </div>
-    <p id="status" class="status">Tap to speak</p>
   </section>
 
   <dialog id="settings">
@@ -128,10 +126,33 @@
               <option value="server">Always via Jarvis server</option>
             </select>
           </label>
+          <label>Jarvis server URL <small>(optional, e.g. https://my-pc.tailnet.ts.net:8080)</small>
+            <input data-key="serverUrl" type="url" placeholder="same address as this page" autocomplete="off">
+          </label>
           <label>Jarvis server token <small>(if JARVIS_TOKEN is set on the server)</small>
             <input data-key="serverToken" type="password" autocomplete="off">
           </label>
           <button type="button" id="btn-test" class="wide">Test connection</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Companion</legend>
+          <label>Your Jarvis buddy
+            <select data-key="buddyKind" id="buddy-kind"></select>
+          </label>
+          <label class="check"><input data-key="buddySound" type="checkbox"> Buddy sounds (meows, barks, beeps)</label>
+        </fieldset>
+
+        <fieldset class="android-only">
+          <legend>Android: floating Jarvis</legend>
+          <p class="hint">Show Jarvis as a floating bubble over all apps, running in the background. Tap it to talk, or say the wake word.</p>
+          <button type="button" id="btn-perms" class="wide">1 · Grant permissions</button>
+          <button type="button" id="btn-battery" class="wide">2 · Allow running in background</button>
+          <div class="row">
+            <button type="button" id="btn-bubble-start" class="wide">Start bubble</button>
+            <button type="button" id="btn-bubble-stop" class="wide">Stop bubble</button>
+          </div>
+          <label class="check"><input type="checkbox" id="chk-boot"> Start the bubble when the phone turns on</label>
         </fieldset>
 
         <fieldset>

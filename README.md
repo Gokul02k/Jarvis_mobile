@@ -1,151 +1,181 @@
 <div align="center">
 
-<img src="web/icons/icon-192.png" width="120" alt="Jarvis logo">
+<img src="web/icons/icon-192.png" width="110" alt="Jarvis logo">
 
 # J.A.R.V.I.S. Mobile
 
-### *“At your service.”* — a voice-controlled AI assistant for your phone
+### *“At your service.”* — a floating, voice-controlled AI buddy for your phone
 
-Talk to it. It listens, thinks with **Gemini** or **Grok**, and **does the work**: calls, messages, music, navigation, reminders, weather, notes, flashlight and more.
+A little animated companion lives in a circle on your screen **over every app**.
+Tap it or say **“Jarvis…”**, tell it what you want, and it **does the work**:
+calls, messages, music, alarms, navigation, reminders, flashlight, settings and more.
+It thinks with **Gemini**, **Grok** or your own **OpenJarvis**.
 
-![PWA](https://img.shields.io/badge/PWA-installable-35d0ff?style=for-the-badge&logo=pwa&logoColor=white)
+![Android](https://img.shields.io/badge/Android-app-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![PWA](https://img.shields.io/badge/Web-PWA-35d0ff?style=for-the-badge&logo=pwa&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=for-the-badge&logo=googlegemini&logoColor=white)
 ![Grok](https://img.shields.io/badge/xAI-Grok-000000?style=for-the-badge&logo=x&logoColor=white)
 ![OpenJarvis](https://img.shields.io/badge/OpenJarvis-compatible-8a2be2?style=for-the-badge)
-![No build step](https://img.shields.io/badge/build-none-3ee69a?style=for-the-badge)
 
-<img src="docs/screenshot-chat.png" width="260" alt="Jarvis conversation">&nbsp;&nbsp;&nbsp;<img src="docs/screenshot-settings.png" width="260" alt="Jarvis settings">
+<img src="docs/companions.png" width="620" alt="Robot, cat, puppy, bunny, panda and pig companions">
+
+<sub>Pick your buddy: Robot · Cat · Puppy · Bunny · Panda · Pig. The ring shows what it's doing: <b>blue</b> listening · <b>amber</b> thinking · <b>green</b> speaking</sub>
+
+<br><br>
+
+<img src="docs/screenshot-chat.png" width="250" alt="Jarvis app">&nbsp;&nbsp;&nbsp;<img src="docs/bubble.png" width="330" alt="Floating bubble talking">
 
 </div>
 
 ---
 
-## ✨ Features
+## ✨ Highlights
 
 | | |
 |---|---|
-| 🎙️ **Hands-free voice** | Tap the arc-reactor orb, or turn on the **“Jarvis…”** wake word for hands-free use |
-| 🗣️ **Talks back** | Spoken replies in your chosen voice, language and speed, with follow-up listening when Jarvis asks a question |
-| 🧠 **Pick your brain** | Google **Gemini**, xAI **Grok**, or your own **OpenJarvis** agent. Switch any time |
-| 🛠️ **26 real actions** | Function-calling agent loop. Jarvis chains tools by itself (e.g. *find contact → call*) |
-| 🔐 **Keys stay safe** | Keep API keys on your PC behind the included proxy server, with an optional access token |
-| 📲 **Installable** | Add it to your home screen like a native app. Offline shell, notifications, “Talk to Jarvis” shortcut |
-| 💾 **Remembers you** | Long-term memory, notes and reminders stored on your device |
+| 🫧 **Floating bubble** | A small circle that stays on screen over every app (Android), like a chat head. Drag it anywhere and it snaps to the edge. Drop it on the ✕ to close it |
+| 🐾 **A living companion** | Animated faces ported from Daymark. It blinks, its eyes follow your finger, it yawns and naps, and it reacts when you pet, poke, tickle or fling it. Animals make real sounds |
+| 🎙️ **Touch or call** | Tap it to talk, or turn on the wake word and just say **“Jarvis, …”** |
+| 🌙 **Runs in the background** | Foreground service with a mic, so it keeps listening while you use other apps. Optional start on boot |
+| 🧠 **Your choice of brain** | Google **Gemini**, xAI **Grok**, or **OpenJarvis** on your PC. Switch any time |
+| 🛠️ **31 real actions** | A function-calling agent that chains steps by itself (*find contact → call*) |
+| 🔐 **Private** | Keys stay on your phone or on your own PC server. Notes and memory stay on the device |
 
-## 🗣️ Things you can say
+## 👆 Touch the bubble
 
-> “Jarvis, **call Mom**” · “**Text Rahul** I'm running 10 minutes late” · “**WhatsApp** 9198xxxxxxx good morning”
-> “**Play** Believer on Spotify” · “**Navigate** to the airport” · “What's the **weather** tomorrow?”
-> “**Remind me** at 6 pm to buy milk” · “Set a **timer** for 10 minutes” · “Add a **meeting** tomorrow at 3”
-> “Turn on the **flashlight**” · “What's my **battery**?” · “**Open** Instagram” · “**Search** latest iPhone price”
-> “**Remember** that my sister's birthday is 12 March” · “**Take a note**: buy a charger”
-> “**Ask OpenJarvis** to summarise my unread emails” *(runs on your computer)*
+| Gesture | What happens |
+|---|---|
+| **Tap** | Jarvis listens. Tap again to stop it talking |
+| **Say “Jarvis …”** | Hands-free (turn on *Wake word*) |
+| **Double-tap** | Opens the full Jarvis app (chat, settings) |
+| **Hold** | Pet it 💕 (purrs, hearts) |
+| **Drag** | Move it. It snaps to the nearest edge |
+| **Drag onto ✕** | Close the bubble |
+| **Tap its nose** | Achoo! 🤧 |
+| **5 quick taps** | It gets dizzy |
+| **Notification → Talk / Quick-settings tile** | Talk without finding the bubble |
+
+## 🗣️ What can it do?
+
+Just say it naturally. Jarvis decides which actions to use.
+
+| Category | Things you can say | Android app | Browser |
+|---|---|:-:|:-:|
+| 📞 **Calls** | “Call Mom” · “Call 98765 43210” | ✅ direct call | dialer |
+| 👥 **Contacts** | “What's Rahul's number?” | ✅ phone contacts | saved list |
+| 💬 **Messages** | “Text Priya I'm on my way” · “WhatsApp Dad good night” · “Email boss I'm sick today” | ✅ pre-filled | ✅ |
+| 📱 **Open apps** | “Open Instagram” · “Open my banking app” | ✅ *any* installed app | popular ones |
+| 🎵 **Music & video** | “Play Believer on Spotify” · “Pause” · “Next song” | ✅ + playback control | ✅ play |
+| 🔊 **Volume** | “Volume to 30%” · “Mute ringtone” | ✅ | — |
+| ⏰ **Alarms & timers** | “Wake me up at 6:30 on weekdays” · “10-minute timer” | ✅ clock app | in-app timer |
+| 🔔 **Reminders** | “Remind me at 6 pm to buy milk” · “What are my reminders?” | ✅ notification | while open |
+| 📅 **Calendar** | “Add a meeting tomorrow at 3 pm” | ✅ | ✅ |
+| 🗺️ **Navigation** | “Navigate to the airport” · “Walk to the nearest ATM” | ✅ | ✅ |
+| 🌦️ **Weather** | “Will it rain tomorrow?” · “Weather in Chennai” | ✅ | ✅ |
+| 📍 **Location** | “Where am I?” | ✅ | ✅ |
+| 🔦 **Flashlight** | “Turn on the torch” | ✅ | Chrome only |
+| ⚙️ **Settings** | “Open Wi-Fi” · “Bluetooth settings” · “Do not disturb” | ✅ | — |
+| 📷 **Camera** | “Open the camera” · “Record a video” | ✅ | — |
+| 🔋 **Phone status** | “How much battery?” · “Am I on Wi-Fi?” | ✅ | partly |
+| 📳 **Find my phone** | “Vibrate” | ✅ | ✅ |
+| 🔎 **Search** | “Search the latest iPhone price” · “Show me pictures of Goa” | ✅ | ✅ |
+| 📝 **Notes & to-dos** | “Note: buy a charger” · “Read my notes” | ✅ | ✅ |
+| 🧠 **Memory** | “Remember my sister's birthday is 12 March” | ✅ | ✅ |
+| 📋 **Clipboard & share** | “Copy that” · “Share this with…” | ✅ | ✅ |
+| 💡 **Questions & chat** | Facts, maths, translation, writing, advice… | ✅ | ✅ |
+| 🖥️ **PC tasks** | “Ask OpenJarvis to summarise my emails” | ✅ | ✅ |
+
+> 🔒 Messages and emails open **pre-filled**, so you press send and nothing goes out without you. Calls go straight through only once you grant the *Phone* permission.
+
+## 📲 Install on Android (recommended)
+
+1. Download **`Jarvis.apk`** from the [latest release](../../releases/tag/latest) on your phone. GitHub Actions builds it automatically on every push.
+2. Open it and allow **Install unknown apps**.
+3. In Jarvis, open **⚙ Settings**:
+   - add your **Gemini** key ([aistudio.google.com/apikey](https://aistudio.google.com/apikey), free tier) and/or **Grok** key ([console.x.ai](https://console.x.ai))
+   - **1 · Grant permissions** (microphone, contacts, phone, location, notifications, display over other apps)
+   - **2 · Allow running in background** (turns off battery optimisation so Android doesn't kill it)
+   - **Start bubble** 🫧
+4. *(Optional)* Turn on **Wake word** and **Start on boot**, and add the **“Talk to Jarvis”** quick-settings tile.
 
 <details>
-<summary><b>Full tool list</b></summary>
+<summary><b>Build the APK yourself</b></summary>
 
-| Tool | What it does |
-|---|---|
-| `get_datetime` | Current local date/time |
-| `open_website`, `web_search` | Open sites; Google / images / news / YouTube search |
-| `open_app` | YouTube, WhatsApp, Instagram, Spotify, Gmail, Maps, Camera, Settings, Wi-Fi, … |
-| `find_contact` | Looks up numbers from the contacts you save in settings |
-| `make_call`, `send_sms`, `send_whatsapp`, `send_email` | Pre-filled dialer / SMS / WhatsApp / mail |
-| `navigate` | Google Maps directions (drive, walk, cycle, transit) |
-| `play_media` | YouTube, YouTube Music, Spotify |
-| `get_weather`, `get_location` | Open-Meteo weather + 3-day forecast, GPS + address |
-| `set_timer`, `list_or_cancel_timers` | Countdown timers with sound, vibration and notification |
-| `set_reminder`, `list_reminders`, `add_calendar_event` | In-app reminders + Google Calendar events |
-| `notes`, `remember` | Notes and to-dos, plus long-term memory about you |
-| `device_status`, `flashlight`, `vibrate` | Battery and network status, torch, “find my phone” buzz |
-| `copy_to_clipboard`, `share_text` | Clipboard and the share sheet |
-| `ask_openjarvis` | Delegates a task to the OpenJarvis agent on your PC |
+You need JDK 17+, the Android SDK (platform 35) and Gradle 8.10+:
+
+```bash
+cd android
+gradle assembleRelease
+# → app/build/outputs/apk/release/app-release.apk
+```
+
+Or open the `android/` folder in Android Studio and press ▶. The web app in `web/` is bundled straight into the APK, so there's one codebase for both.
 
 </details>
 
-## 🚀 Quick start
-
-### Option A: run the server on your PC (recommended)
+## 🌐 Or use it in the browser (any phone, including iPhone)
 
 ```bash
-git clone git@github.com:Gokul02k/Jarvis_mobile.git && cd Jarvis_mobile
-cp .env.example .env          # add GEMINI_API_KEY and/or XAI_API_KEY (+ JARVIS_TOKEN)
+cp .env.example .env          # add GEMINI_API_KEY / XAI_API_KEY (+ JARVIS_TOKEN)
 python3 server.py --https     # Python 3.9+, no dependencies
 ```
 
-1. On your phone (same Wi-Fi), open the **Phone** URL it prints, e.g. `https://192.168.1.20:8080`.
-2. Accept the self-signed certificate warning (*Advanced → Proceed*).
-3. Allow the microphone, then use **⋮ → Add to Home screen**.
-4. If you set `JARVIS_TOKEN`, enter it in **Settings → Jarvis server token**.
+Open the printed **Phone** URL (same Wi-Fi), accept the certificate warning, then use **Add to Home screen**. The companion floats inside the app.
 
-> 💡 Phones only allow the microphone on **HTTPS**, which is why `--https` matters. For access from anywhere, put the server behind [Tailscale](https://tailscale.com) (`tailscale serve 8080`) or a Cloudflare Tunnel, which give you a real certificate.
+> Browsers can't draw over other apps or listen in the background. For that, use the Android app.
 
-### Option B: static hosting, with keys on the phone
+## 🧩 OpenJarvis on your PC
 
-The `web/` folder is plain HTML/JS with no build step. Host it on **GitHub Pages**, Netlify or Vercel, open it on your phone, and paste your Gemini or Grok key into **Settings**. Keys are stored only in that phone's browser.
-
-### Get API keys
-
-- **Gemini:** [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (has a free tier)
-- **Grok:** [console.x.ai](https://console.x.ai)
-
-Tap **Load** next to the model field to pick from the models your key can use. If a model is retired, Jarvis switches to the newest available one automatically.
-
-## 🧩 Using OpenJarvis as the brain
-
-[OpenJarvis](https://github.com/open-jarvis/OpenJarvis) (Stanford) is a local-first framework for personal AI agents. It runs on your computer, and Jarvis Mobile becomes its voice on your phone.
+[OpenJarvis](https://github.com/open-jarvis/OpenJarvis) (Stanford) is a local-first framework for personal AI agents. Jarvis Mobile can use it as its brain, or hand heavy jobs to it:
 
 ```bash
 curl -fsSL https://open-jarvis.github.io/OpenJarvis/install.sh | bash
-jarvis serve --port 8000                       # OpenAI-compatible API
-echo "OPENJARVIS_URL=http://127.0.0.1:8000" >> .env
-python3 server.py --https
+jarvis serve --port 8000
+echo "OPENJARVIS_URL=http://127.0.0.1:8000" >> .env && python3 server.py --https
 ```
 
-You can then either:
-- choose **Provider → OpenJarvis** so it handles every request, or
-- keep Gemini or Grok as the fast phone brain, which hands heavy, computer-side jobs to OpenJarvis through the **`ask_openjarvis`** tool.
+In the app, either choose **Provider → OpenJarvis**, or keep Gemini or Grok and say *“ask OpenJarvis to …”*. On Android, set **Jarvis server URL** to your PC's address (Tailscale works great).
 
 ## 🏗️ How it works
 
 ```
- ┌──────────── Phone (PWA) ────────────┐        ┌──────── Your PC (optional) ────────┐
- │ 🎙 Web Speech API  →  transcript    │        │  server.py                          │
- │        ↓                            │  HTTPS │   ├─ /api/gemini  → Google Gemini   │
- │ 🧠 Agent loop  ⇄  LLM (tools)  ─────┼───────▶│   ├─ /api/xai     → xAI Grok        │
- │        ↓                            │        │   └─ /api/openjarvis → jarvis serve │
- │ 🛠 Phone tools: tel:, sms:, maps,   │        │      (keys from .env, token-gated)  │
- │    YouTube, timers, torch, GPS …    │        └─────────────────────────────────────┘
- │        ↓                            │
- │ 🔊 Speech synthesis                 │
- └─────────────────────────────────────┘
+┌──────────────── Android app ────────────────┐
+│  BubbleService (foreground, mic)            │
+│   └─ overlay window ─ WebView  ┐            │         ┌─ Gemini
+│  MainActivity ─ WebView ───────┤ same web/  │  HTTPS  ├─ Grok
+│                                │ code       ├────────▶├─ OpenJarvis (your PC)
+│  JarvisBridge (window.JarvisNative):        │         └─ Open-Meteo weather
+│   speech-to-text · TTS · HTTP · calls ·     │
+│   contacts · apps · alarms · torch · media  │
+│   · volume · settings · reminders           │
+└─────────────────────────────────────────────┘
 ```
 
-| File | Purpose |
+| Path | Purpose |
 |---|---|
-| `web/app.js` | UI, wake word and voice state machine, agent loop, speech output |
-| `web/llm.js` | Gemini and OpenAI-compatible (Grok / OpenJarvis) adapters with function calling |
-| `web/tools.js` | All phone actions |
-| `web/sw.js`, `manifest.json` | Installable PWA, offline shell, notifications |
-| `server.py` | Static server, HTTPS, and API proxy that keeps keys off the phone |
+| `web/app.js` | Voice state machine, agent loop, UI |
+| `web/buddy.js`, `buddy.css` | The animated companion (faces from Daymark) |
+| `web/llm.js` | Gemini and OpenAI-compatible (Grok, OpenJarvis) function calling |
+| `web/tools.js` | All actions, with native versions when running in the app |
+| `web/native.js` | Bridge to Android (speech, HTTP, device controls) |
+| `android/…/BubbleService.kt` | Floating overlay, drag and snap, ✕ to close, foreground service |
+| `android/…/JarvisBridge.kt` | Native phone abilities exposed to the web code |
+| `android/…/Voice.kt` | Android SpeechRecognizer and TextToSpeech |
+| `server.py` | Optional PC server: HTTPS, API-key proxy, OpenJarvis relay |
 
 ## ⚠️ Good to know
 
-- **Best on Chrome for Android.** Safari on iPhone works too, but its wake-word listening is less reliable.
-- A web app can't listen while the **screen is off or the app is in the background**. In wake-word mode Jarvis keeps the screen awake. Always-on, lock-screen listening would need a native app.
-- Browsers only open apps right after a tap. When an automatic open gets blocked, Jarvis shows a card with an **Open** button.
-- Calls, SMS and emails open **pre-filled**. You press send, so nothing goes out without you.
-- Timers and in-app reminders fire while Jarvis is open. For guaranteed alerts, say *“…and add it to my calendar.”*
+- **iPhone:** iOS doesn't let apps float over other apps or listen in the background, so use the web version there.
+- **Wake word** uses Android's speech service in a loop. It works well but uses more battery than tap-to-talk. Some phones (Xiaomi, Oppo, Vivo, Samsung) also need *Autostart* or *No restrictions* turned on for Jarvis in battery settings.
+- Android 14+ won't allow the microphone at boot, so after a restart the bubble comes back but you need to tap it once before the wake word works.
+- The APK is signed with a public sideload key, so updates install over each other. If you publish to the Play Store, use your own key.
 
 ## 🔒 Privacy
 
-- Voice is transcribed by your browser's speech service.
-- Your request goes only to the AI provider you picked.
-- Notes, memory and reminders stay in your phone's local storage.
-- With the server, API keys never leave your PC.
+Voice is transcribed by your phone's speech service. Your request goes only to the AI provider you choose. Notes, memory and reminders stay on the device. Animal sounds come from Wikimedia Commons (see `web/sounds/CREDITS.md`).
 
 ---
 
 <div align="center">
-Built with ❤️ for the phone · Inspired by Tony Stark's J.A.R.V.I.S. · Powered by Gemini, Grok & OpenJarvis
+Built with ❤️ · Inspired by Tony Stark's J.A.R.V.I.S. · Companions from Daymark · Powered by Gemini, Grok & OpenJarvis
 </div>

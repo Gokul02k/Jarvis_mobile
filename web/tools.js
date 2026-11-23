@@ -2,6 +2,9 @@
 // ctx = { settings, ui: { card(title, detail, actions) }, speak(text), notify(title, body), signal }
 
 import { askOpenJarvis, openJarvisAvailable } from './llm.js';
+import { NATIVE, nativeSync } from './native.js';
+
+const nativeOnly = () => !!NATIVE;
 
 const S = (description, extra = {}) => ({ type: 'string', description, ...extra });
 const N = (description) => ({ type: 'number', description });
@@ -26,6 +29,12 @@ export { store };
 // show a card with a button the user can tap if the automatic open was blocked.
 function launch(ctx, url, title, detail) {
   let opened = false;
+  if (NATIVE) {
+    // The Android app can open apps and links directly, even from the floating bubble.
+    try { opened = !!NATIVE.openUrl(url); } catch { }
+    if (!opened) ctx.ui.card(title, detail || url, [{ label: 'Open', href: url }]);
+    return opened;
+  }
   if (ctx.settings.autoOpen) {
     try {
       if (/^https?:/i.test(url)) {
@@ -93,7 +102,7 @@ export function initScheduler(ctx) {
     const due = list.filter(r => r.due <= now);
     if (!due.length) return;
     store.set('reminders', list.filter(r => r.due > now));
-    for (const r of due) ctx.alert('Reminder', r.text);
+    for (const r of due) if (!r.native) ctx.alert('Reminder', r.text);
   }, 15000);
 }
 
@@ -201,10 +210,14 @@ export const TOOLS = [
   },
   {
     name: 'open_app',
-    description: `Open an app on the phone. Known apps: ${Object.keys(APPS).join(', ')}.`,
+    description: `Open any installed app on the phone by name. Shortcuts: ${Object.keys(APPS).join(', ')}.`,
     parameters: obj({ app_name: S('Name of the app') }, ['app_name']),
     run: ({ app_name }, ctx) => {
       const key = String(app_name).toLowerCase().trim();
+      if (NATIVE) {
+        const r = nativeSync('launchApp', app_name);
+        if (r?.ok) return r;
+      }
       const url = APPS[key] || APPS[key.replace(/^google /, '')] ||
         Object.entries(APPS).find(([k]) => key.includes(k))?.[1];
       if (!url) return { error: `I don't have a shortcut for "${app_name}". Try open_website with its site.` };
@@ -213,12 +226,14 @@ export const TOOLS = [
   },
   {
     name: 'find_contact',
-    description: 'Look up a phone number by name in the contacts the user saved in Jarvis settings. Use before calling or messaging someone by name.',
+    description: 'Look up a phone number by name in the phone contacts and the contacts saved in Jarvis settings. Use before calling or messaging someone by name.',
     parameters: obj({ name: S('Contact name') }, ['name']),
     run: ({ name }, ctx) => {
       const all = parseContacts(ctx.settings.contacts);
       const q = name.toLowerCase();
       const hits = all.filter(c => c.name.toLowerCase().includes(q) || q.includes(c.name.toLowerCase()));
+      const phone = nativeSync('findContacts', name);
+      if (Array.isArray(phone)) hits.push(...phone.filter(p => !hits.some(h => h.number === p.number)));
       if (!hits.length) return { found: false, note: 'Not in saved contacts. Ask the user for the number, or tell them to add it in Jarvis settings > Contacts.' };
       return { found: true, matches: hits };
     },
@@ -229,6 +244,7 @@ export const TOOLS = [
     parameters: obj({ phone_number: S('Phone number with country code if known'), name: S('Who is being called') }, ['phone_number']),
     run: ({ phone_number, name }, ctx) => {
       const n = cleanNumber(phone_number);
+      if (NATIVE) return nativeSync('call', n) || { error: 'Could not start the call' };
       return { opened: launch(ctx, `tel:${n}`, `Call ${name || n}`, n) };
     },
   },
@@ -347,6 +363,7 @@ export const TOOLS = [
     description: 'Set a countdown timer. Jarvis announces it when done (the Jarvis app must stay open).',
     parameters: obj({ seconds: N('Duration in seconds'), label: S('What the timer is for') }, ['seconds']),
     run: ({ seconds, label = 'Timer' }, ctx) => {
+      if (NATIVE) return nativeSync('setTimer', String(Math.round(seconds)), label) || { error: 'No clock app found' };
       const ms = Math.max(1, Number(seconds)) * 1000;
       const id = Math.random().toString(36).slice(2, 7);
       const handle = setTimeout(() => { timers.delete(id); ctx.alert('Timer done', label); }, ms);
@@ -369,7 +386,7 @@ export const TOOLS = [
   },
   {
     name: 'set_reminder',
-    description: 'Remind the user about something at a specific local date/time. Jarvis announces it while the app is open; set add_to_calendar=true for a reliable phone notification via Google Calendar.',
+    description: 'Remind the user about something at a specific local date/time (phone notification in the Android app; in the browser only while open); set add_to_calendar=true for a reliable phone notification via Google Calendar.',
     parameters: obj({
       text: S('What to remind about'),
       when: S('Local date-time in ISO format, e.g. 2026-11-24T09:00'),
@@ -378,7 +395,8 @@ export const TOOLS = [
     run: ({ text, when, add_to_calendar }, ctx) => {
       const d = parseWhen(when);
       const list = store.get('reminders', []);
-      list.push({ text, due: d.getTime() });
+      const native = NATIVE ? nativeSync('scheduleReminder', String(d.getTime()), text) : null;
+      list.push({ text, due: d.getTime(), native: !!native?.ok });
       store.set('reminders', list);
       if (add_to_calendar) {
         const end = new Date(d.getTime() + 15 * 60000);
@@ -464,6 +482,8 @@ export const TOOLS = [
     description: 'Get phone battery level, charging state and network status.',
     parameters: obj({}),
     run: async () => {
+      const nat = nativeSync('deviceStatus');
+      if (nat) return nat;
       const out = { online: navigator.onLine };
       try {
         const b = await navigator.getBattery();
@@ -479,19 +499,24 @@ export const TOOLS = [
     name: 'flashlight',
     description: 'Turn the phone flashlight (torch) on or off.',
     parameters: obj({ on: B('true to turn on, false to turn off') }, ['on']),
-    run: ({ on }) => setTorch(!!on),
+    run: ({ on }) => (NATIVE ? nativeSync('torch', String(!!on)) : setTorch(!!on)),
   },
   {
     name: 'vibrate',
     description: 'Vibrate the phone, e.g. to help find it.',
     parameters: obj({ seconds: N('How long') }),
-    run: ({ seconds = 1 }) => ({ ok: !!navigator.vibrate?.(Math.min(10, seconds) * 1000) }),
+    run: ({ seconds = 1 }) => {
+      const ms = Math.min(10, seconds) * 1000;
+      if (NATIVE) { NATIVE.vibrate(String(ms)); return { ok: true }; }
+      return { ok: !!navigator.vibrate?.(ms) };
+    },
   },
   {
     name: 'copy_to_clipboard',
     description: 'Copy text to the clipboard.',
     parameters: obj({ text: S('Text to copy') }, ['text']),
     run: async ({ text }, ctx) => {
+      if (NATIVE) { NATIVE.copy(text); return { ok: true }; }
       try { await navigator.clipboard.writeText(text); return { ok: true }; } catch {
         ctx.ui.card('Copy text', text, [{ label: 'Copy', onClick: () => navigator.clipboard.writeText(text) }]);
         return { ok: false, note: 'Shown a Copy button for the user to tap' };
@@ -503,9 +528,49 @@ export const TOOLS = [
     description: 'Share text or a link to another app via the phone share sheet.',
     parameters: obj({ text: S('Text to share'), url: S('Optional link') }, ['text']),
     run: ({ text, url }, ctx) => {
+      if (NATIVE) { NATIVE.share([text, url].filter(Boolean).join('\n')); return { ok: true }; }
       ctx.ui.card('Share', text, [{ label: 'Share', onClick: () => navigator.share?.({ text, url }) }]);
       return { ok: true, note: 'Share button shown; the user taps it to choose an app' };
     },
+  },
+  {
+    name: 'set_alarm',
+    description: 'Set an alarm in the phone clock app.',
+    parameters: obj({ hour: N('Hour 0-23'), minute: N('Minute 0-59'), label: S('Alarm label'), days: S('Optional repeat days, e.g. "mon,tue,wed,thu,fri"') }, ['hour', 'minute']),
+    available: nativeOnly,
+    run: ({ hour, minute, label = 'Jarvis alarm', days = '' }) => nativeSync('setAlarm', String(hour), String(minute), label, days) || { error: 'No clock app found' },
+  },
+  {
+    name: 'media_control',
+    description: 'Control whatever music/video is playing on the phone (Spotify, YouTube Music, etc.).',
+    parameters: obj({ action: S('What to do', { enum: ['play', 'pause', 'toggle', 'next', 'previous', 'stop'] }) }, ['action']),
+    available: nativeOnly,
+    run: ({ action }) => nativeSync('media', action) || { error: 'Failed' },
+  },
+  {
+    name: 'volume',
+    description: 'Change phone volume. Stream: media, ring, alarm, notification.',
+    parameters: obj({
+      action: S('What to do', { enum: ['set', 'up', 'down', 'mute', 'unmute'] }),
+      level: N('Percent 0-100 (for set)'),
+      stream: S('Which volume', { enum: ['media', 'ring', 'alarm', 'notification'] }),
+    }, ['action']),
+    available: nativeOnly,
+    run: ({ action, level = 50, stream = 'media' }) => nativeSync('volume', action, String(level), stream) || { error: 'Failed' },
+  },
+  {
+    name: 'open_settings',
+    description: 'Open a phone settings page.',
+    parameters: obj({ page: S('Which page', { enum: ['main', 'wifi', 'bluetooth', 'mobile_data', 'airplane', 'display', 'sound', 'battery', 'location', 'apps', 'notifications', 'hotspot', 'do_not_disturb', 'date_time', 'accessibility', 'storage'] }) }, ['page']),
+    available: nativeOnly,
+    run: ({ page }) => nativeSync('openSettings', page) || { error: 'Failed' },
+  },
+  {
+    name: 'take_photo',
+    description: 'Open the camera to take a photo or video (selfie camera if requested).',
+    parameters: obj({ video: B('Record video instead of photo') }),
+    available: nativeOnly,
+    run: ({ video }) => nativeSync('camera', String(!!video)) || { error: 'No camera app' },
   },
   {
     name: 'ask_openjarvis',
