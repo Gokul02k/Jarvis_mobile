@@ -1,6 +1,6 @@
 // Offline app shell. API calls always go to the network.
-const CACHE = 'jarvis-v2';
-const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'llm.js', 'tools.js', 'buddy.js', 'buddy.css', 'native.js', 'manifest.json', 'icons/icon.svg', 'icons/icon-192.png'];
+const CACHE = 'jarvis-v3';
+const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'llm.js', 'tools.js', 'buddy.js', 'buddy.css', 'native.js', 'update.js', 'manifest.json', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

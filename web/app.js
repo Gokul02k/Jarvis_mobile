@@ -2,6 +2,7 @@ import { chat, listModels, pickModel, serverBase } from './llm.js';
 import { toolsFor, runTool, initScheduler, activeTimers, store } from './tools.js';
 import { createBuddy } from './buddy.js';
 import { NATIVE, IS_BUBBLE, NativeSpeechRecognition, nativeSpeak, nativeStopSpeaking, nativeSync } from './native.js';
+import { initUpdates, refreshAbout } from './update.js';
 
 if (IS_BUBBLE) document.documentElement.classList.add('bubble-mode');
 if (NATIVE) document.documentElement.classList.add('in-app');
@@ -19,7 +20,7 @@ const DEFAULTS = {
   lang: navigator.language || 'en-US',
   voiceURI: '', rate: 1.05, speak: true, followUp: true,
   userName: '', contacts: '', musicApp: 'youtube', autoOpen: true,
-  buddySound: true, serverUrl: '',
+  buddySound: true, serverUrl: '', autoUpdateCheck: true,
 };
 const settings = { ...DEFAULTS, ...store.get('settings', {}) };
 const saveSettings = () => {
@@ -507,8 +508,11 @@ const form = $('#settings-form');
 function syncForm() {
   for (const el of form.querySelectorAll('[data-key]')) {
     const v = settings[el.dataset.key];
-    if (el.type === 'checkbox') el.checked = !!v; else el.value = v ?? '';
+    if (el.type === 'checkbox') el.checked = !!v;
+    else if (el.type === 'radio') el.checked = el.value === v;
+    else el.value = v ?? '';
   }
+  $('#rate-out').textContent = `${Number(settings.rate).toFixed(2)}×`;
   const p = settings.provider;
   for (const el of form.querySelectorAll('[data-show]')) {
     const show = el.dataset.show;
@@ -532,7 +536,42 @@ form.addEventListener('input', (e) => {
   if (key === 'wakeWord') setState(state);
   if (key === 'buddySound') buddy.setSound(settings.buddySound);
   if (key === 'serverUrl') detectServer();
+  if (key === 'rate') $('#rate-out').textContent = `${Number(settings.rate).toFixed(2)}×`;
 });
+
+// ---- tabs and the (i) explanations
+const tabs = [...form.querySelectorAll('[data-tab]')];
+function showTab(name) {
+  const tab = tabs.find(t => t.dataset.tab === name && getComputedStyle(t).display !== 'none') || tabs[0];
+  for (const t of tabs) {
+    const on = t === tab;
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+  }
+  for (const p of form.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== tab.dataset.tab;
+  $('#settings-sub').textContent = tab.dataset.sub;
+  form.querySelector('.settings-body').scrollTop = 0;
+  if (tab.dataset.tab === 'about') refreshAbout();
+  try { localStorage.setItem('jarvis.settingsTab', tab.dataset.tab); } catch { }
+}
+form.querySelector('.tabs').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-tab]');
+  if (t) showTab(t.dataset.tab);
+});
+form.addEventListener('click', (e) => {
+  const info = e.target.closest('.info');
+  if (!info) return;
+  const more = info.closest('.s-card').querySelector('.s-more');
+  more.hidden = !more.hidden;
+  info.setAttribute('aria-expanded', String(!more.hidden));
+});
+function openSettings(tab) {
+  syncForm();
+  let last = 'general';
+  try { last = localStorage.getItem('jarvis.settingsTab') || last; } catch { }
+  showTab(tab || last);
+  dialog.showModal();
+}
 
 
 // ---- Android-only controls
@@ -598,7 +637,23 @@ $('#btn-clear-mem').addEventListener('click', () => {
   syncForm();
 });
 
-$('#btn-settings').addEventListener('click', () => { syncForm(); dialog.showModal(); });
+$('#btn-settings').addEventListener('click', () => openSettings());
+
+// ---- updates (Settings → About)
+initUpdates({
+  settings,
+  notify(available) {
+    $('#gear-dot').hidden = !available;
+    $('#about-dot').hidden = !available;
+    if (!available || IS_BUBBLE) return;
+    const code = store.get('update.latest', {})?.versionCode;
+    if (code && store.get('update.announced', 0) !== code) {
+      store.set('update.announced', code);
+      ui.card('A new version of Jarvis is ready', 'Open Settings → About to update. Your settings and memory are kept.',
+        [{ label: 'Update', onClick: () => openSettings('about') }]);
+    }
+  },
+});
 
 // ------------------------------------------------------------------ boot
 
@@ -614,7 +669,7 @@ async function detectServer() {
     info.innerHTML = `<span class="ok">Jarvis server connected.</span> Keys on server — Gemini ${tick(s.gemini)}, Grok ${tick(s.xai)}, OpenJarvis ${tick(s.openjarvis)}${s.tokenRequired ? ' (token required)' : ''}.`;
   } catch {
     settings._server = null;
-    info.textContent = NATIVE ? 'Running in the Android app. Enter your API key(s) below, or a Jarvis server URL.' : 'No Jarvis server detected (static hosting). Enter your API key(s) below.';
+    info.textContent = NATIVE ? 'Requests go straight from your phone to the AI. Add a Jarvis server only if you run one.' : 'No Jarvis server detected. Requests go straight from this browser to the AI.';
   }
 }
 

@@ -30,6 +30,20 @@ jobs:
       - name: Rename APK
         run: cp android/app/build/outputs/apk/release/app-release.apk Jarvis.apk
 
+      # Read by the app's "Check for updates" button. Must match versionCode in build.gradle.kts.
+      - name: Version manifest
+        run: |
+          notes="$(git log -1 --format=%B | grep -v -i '^co-authored-by' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')"
+          jq -n \
+            --argjson versionCode "$((100 + GITHUB_RUN_NUMBER))" \
+            --argjson build "$GITHUB_RUN_NUMBER" \
+            --arg sha "${GITHUB_SHA::7}" \
+            --arg notes "$notes" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson size "$(stat -c %s Jarvis.apk)" \
+            '{versionCode: $versionCode, build: $build, sha: $sha, notes: $notes, date: $date, size: $size}' > version.json
+          cat version.json
+
       - uses: actions/upload-artifact@v4
         with:
           name: Jarvis-apk
@@ -43,7 +57,10 @@ jobs:
           name: Jarvis (latest build)
           prerelease: true
           make_latest: false
-          files: Jarvis.apk
+          # APK first, then the manifest, so the app never sees a version the APK doesn't have yet.
+          files: |
+            Jarvis.apk
+            version.json
           body: |
-            Latest Jarvis build from `${{ github.sha }}`.
+            Jarvis build ${{ github.run_number }} from `${{ github.sha }}`. Installed apps can update from **Settings → About → Update**.
             Download **Jarvis.apk** on your Android phone, open it, and allow "Install unknown apps".

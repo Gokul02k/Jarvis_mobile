@@ -11,9 +11,15 @@ android {
         applicationId = "com.jarvis.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "2.0"
+        // CI builds count up (100 + run number) so each one installs as an update over the last.
+        // No user-facing version number yet: builds are just "build N".
+        val run = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+        versionCode = if (run != null) 100 + run else 1
+        versionName = if (run != null) "build $run" else "dev build"
+        buildConfigField("String", "GIT_SHA", "\"${System.getenv("GITHUB_SHA")?.take(7) ?: "dev"}\"")
     }
+
+    buildFeatures { buildConfig = true }
 
     // A fixed key so new builds install as updates over old ones (sideloading only).
     signingConfigs {

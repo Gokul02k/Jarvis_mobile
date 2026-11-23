@@ -407,6 +407,27 @@ class JarvisBridge(
 
     @JavascriptInterface fun setStartOnBoot(on: String) { Prefs.setStartOnBoot(ctx, on == "true") }
 
+    // ================================================================== app updates
+
+    @JavascriptInterface fun appInfo(): String = Updater.info(ctx).toString()
+
+    @JavascriptInterface fun allowInstalls() { Updater.askInstallPermission(ctx) }
+
+    /** Downloads the latest APK and opens the installer. Progress → window.__jarvisUpdate(pct). */
+    @JavascriptInterface
+    fun installUpdate(id: String, url: String) {
+        io.execute {
+            val res = try {
+                Updater.downloadAndInstall(ctx, url.ifBlank { Updater.APK_URL }) { pct ->
+                    js("window.__jarvisUpdate && window.__jarvisUpdate($pct)")
+                }
+            } catch (e: Exception) {
+                JSONObject().put("ok", false).put("error", "Update failed: ${e.message ?: e.javaClass.simpleName}")
+            }
+            callback(id, res)
+        }
+    }
+
     @JavascriptInterface
     fun requestPermissions() = main.post { permissionSteps(askRuntime = true) }
 

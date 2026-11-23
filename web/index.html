@@ -23,7 +23,7 @@
         <p id="model-label" class="sub">—</p>
       </div>
     </div>
-    <button id="btn-settings" class="icon-btn" aria-label="Settings">
+    <button id="btn-settings" class="icon-btn" aria-label="Settings"><i class="gear-dot" id="gear-dot" hidden></i>
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
   </header>
@@ -69,138 +69,237 @@
   <dialog id="settings">
     <form method="dialog" class="settings-form" id="settings-form">
       <header class="settings-head">
-        <h2>Settings</h2>
-        <button value="close" class="icon-btn" aria-label="Close">✕</button>
+        <div>
+          <h2>Settings</h2>
+          <p class="settings-sub" id="settings-sub">you, your phone and your preferences</p>
+        </div>
+        <button type="submit" value="close" class="icon-btn" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
       </header>
 
+      <nav class="tabs" role="tablist" aria-label="Settings sections">
+        <button type="button" role="tab" data-tab="general" data-sub="you, your phone and your preferences">General</button>
+        <button type="button" role="tab" data-tab="brain" data-sub="the AI that answers you">Brain</button>
+        <button type="button" role="tab" data-tab="voice" data-sub="listening, speaking and the robot">Voice</button>
+        <button type="button" role="tab" data-tab="phone" class="android-only" data-sub="floating bubble and permissions">Phone</button>
+        <button type="button" role="tab" data-tab="about" data-sub="version and updates">About<i class="tab-dot" id="about-dot" hidden></i></button>
+      </nav>
+
       <div class="settings-body">
-        <p id="server-info" class="hint"></p>
 
-        <fieldset>
-          <legend>AI brain</legend>
-          <label>Provider
-            <select data-key="provider">
-              <option value="gemini">Google Gemini</option>
-              <option value="grok">xAI Grok</option>
-              <option value="openjarvis">OpenJarvis (your computer)</option>
-            </select>
-          </label>
+        <!-- ============================================================ General -->
+        <section class="tab-panel" data-panel="general">
+          <article class="s-card">
+            <header class="s-head"><h3>About you</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Jarvis uses your name in replies. The contacts here are used when the phone's own contact list doesn't find someone.</p>
+              <label>Your name
+                <input data-key="userName" placeholder="What should Jarvis call you?">
+              </label>
+              <label>Contacts <small>one per line: Name: number</small>
+                <textarea data-key="contacts" rows="3" placeholder="Mom: +91 98765 43210&#10;Rahul: +91 91234 56789"></textarea>
+              </label>
+            </div>
+          </article>
 
-          <div data-show="gemini">
-            <label>Gemini API key
-              <input data-key="geminiKey" type="password" placeholder="AIza…  (aistudio.google.com/apikey)" autocomplete="off">
-            </label>
-            <label>Gemini model
-              <span class="row"><input data-key="geminiModel" list="models-gemini" placeholder="gemini-2.5-flash"><button type="button" class="small" data-load="gemini">Load</button></span>
-              <datalist id="models-gemini"></datalist>
-            </label>
-          </div>
+          <article class="s-card">
+            <header class="s-head"><h3>Apps &amp; music</h3></header>
+            <div class="s-body">
+              <span class="field-label">Play music with</span>
+              <div class="chips">
+                <label class="chip"><input type="radio" name="musicApp" data-key="musicApp" value="youtube"><span>YouTube</span></label>
+                <label class="chip"><input type="radio" name="musicApp" data-key="musicApp" value="youtube_music"><span>YouTube Music</span></label>
+                <label class="chip"><input type="radio" name="musicApp" data-key="musicApp" value="spotify"><span>Spotify</span></label>
+              </div>
+              <label class="switch"><input data-key="autoOpen" type="checkbox"><i></i>
+                <span><b>Open apps automatically</b><small>otherwise Jarvis shows a card you tap</small></span></label>
+              <button type="button" id="btn-notify" class="btn">Allow notifications</button>
+            </div>
+          </article>
 
-          <div data-show="grok">
-            <label>Grok (xAI) API key
-              <input data-key="xaiKey" type="password" placeholder="xai-…  (console.x.ai)" autocomplete="off">
-            </label>
-            <label>Grok model
-              <span class="row"><input data-key="grokModel" list="models-grok" placeholder="grok-4"><button type="button" class="small" data-load="grok">Load</button></span>
-              <datalist id="models-grok"></datalist>
-            </label>
-          </div>
+          <article class="s-card">
+            <header class="s-head"><h3>Memory</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Memory, notes and reminders stay on this phone. Clearing the conversation keeps what Jarvis remembers about you.</p>
+              <p id="memory-view" class="hint"></p>
+              <div class="row">
+                <button type="button" id="btn-clear-chat" class="btn">Clear conversation</button>
+                <button type="button" id="btn-clear-mem" class="btn danger">Forget everything</button>
+              </div>
+            </div>
+          </article>
+        </section>
 
-          <div data-show="openjarvis-any">
-            <label>OpenJarvis URL <small>(optional if the Jarvis server has OPENJARVIS_URL)</small>
-              <input data-key="ojUrl" type="url" placeholder="https://my-pc.tailnet.ts.net:8000" autocomplete="off">
-            </label>
-            <label>OpenJarvis API key <small>(optional)</small>
-              <input data-key="ojKey" type="password" autocomplete="off">
-            </label>
-            <label>OpenJarvis model <small>(blank = first available)</small>
-              <span class="row"><input data-key="ojModel" list="models-openjarvis"><button type="button" class="small" data-load="openjarvis">Load</button></span>
-              <datalist id="models-openjarvis"></datalist>
-            </label>
-          </div>
+        <!-- ============================================================ Brain -->
+        <section class="tab-panel" data-panel="brain" hidden>
+          <article class="s-card">
+            <header class="s-head"><h3>AI provider</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Gemini has a free tier and is the fastest choice. Grok needs a paid xAI key. OpenJarvis runs a model on your own computer.</p>
+              <div class="chips">
+                <label class="chip"><input type="radio" name="provider" data-key="provider" value="gemini"><span>Gemini</span></label>
+                <label class="chip"><input type="radio" name="provider" data-key="provider" value="grok"><span>Grok</span></label>
+                <label class="chip"><input type="radio" name="provider" data-key="provider" value="openjarvis"><span>OpenJarvis</span></label>
+              </div>
 
-          <label>Connection
-            <select data-key="connection">
-              <option value="auto">Auto (use Jarvis server if it has the key)</option>
-              <option value="direct">Direct from phone (keys stored on phone)</option>
-              <option value="server">Always via Jarvis server</option>
-            </select>
-          </label>
-          <label>Jarvis server URL <small>(optional, e.g. https://my-pc.tailnet.ts.net:8080)</small>
-            <input data-key="serverUrl" type="url" placeholder="same address as this page" autocomplete="off">
-          </label>
-          <label>Jarvis server token <small>(if JARVIS_TOKEN is set on the server)</small>
-            <input data-key="serverToken" type="password" autocomplete="off">
-          </label>
-          <button type="button" id="btn-test" class="wide">Test connection</button>
-        </fieldset>
+              <div data-show="gemini" class="stack">
+                <label>Gemini API key <small>aistudio.google.com/apikey</small>
+                  <input data-key="geminiKey" type="password" placeholder="AIza…" autocomplete="off">
+                </label>
+                <label>Model
+                  <span class="row"><input data-key="geminiModel" list="models-gemini" placeholder="gemini-2.5-flash"><button type="button" class="btn small" data-load="gemini">Load</button></span>
+                  <datalist id="models-gemini"></datalist>
+                </label>
+              </div>
 
-        <fieldset>
-          <legend>Companion</legend>
-          <label class="check"><input data-key="buddySound" type="checkbox"> Robot beeps</label>
-        </fieldset>
+              <div data-show="grok" class="stack">
+                <label>Grok (xAI) API key <small>console.x.ai</small>
+                  <input data-key="xaiKey" type="password" placeholder="xai-…" autocomplete="off">
+                </label>
+                <label>Model <small>pick a “fast non-reasoning” one for quick replies</small>
+                  <span class="row"><input data-key="grokModel" list="models-grok" placeholder="grok-4-fast-non-reasoning"><button type="button" class="btn small" data-load="grok">Load</button></span>
+                  <datalist id="models-grok"></datalist>
+                </label>
+              </div>
 
-        <fieldset class="android-only">
-          <legend>Android: floating Jarvis</legend>
-          <p class="hint">Show Jarvis as a floating bubble over all apps, running in the background. Tap it to talk, or say the wake word.</p>
-          <button type="button" id="btn-perms" class="wide">1 · Grant permissions</button>
-          <button type="button" id="btn-battery" class="wide">2 · Allow running in background</button>
-          <div class="row">
-            <button type="button" id="btn-bubble-start" class="wide">Start bubble</button>
-            <button type="button" id="btn-bubble-stop" class="wide">Stop bubble</button>
-          </div>
-          <label class="check"><input type="checkbox" id="chk-boot"> Start the bubble when the phone turns on</label>
-        </fieldset>
 
-        <fieldset>
-          <legend>Voice</legend>
-          <label>Wake word
-            <input data-key="wakeWord" placeholder="jarvis">
-          </label>
-          <label>Speech language
-            <input data-key="lang" list="langs" placeholder="en-IN">
-            <datalist id="langs">
-              <option value="en-IN"><option value="en-US"><option value="en-GB"><option value="hi-IN"><option value="ta-IN"><option value="te-IN"><option value="ml-IN"><option value="kn-IN">
-            </datalist>
-          </label>
-          <label>Jarvis voice
-            <select data-key="voiceURI" id="voice-select"><option value="">Default</option></select>
-          </label>
-          <label>Speaking speed
-            <input data-key="rate" type="range" min="0.7" max="1.5" step="0.05">
-          </label>
-          <label class="check"><input data-key="speak" type="checkbox"> Speak replies aloud</label>
-          <label class="check"><input data-key="followUp" type="checkbox"> Keep listening when Jarvis asks a question</label>
-        </fieldset>
+              <button type="button" id="btn-test" class="btn primary">Test connection</button>
+            </div>
+          </article>
 
-        <fieldset>
-          <legend>Personal</legend>
-          <label>Your name
-            <input data-key="userName" placeholder="What should Jarvis call you?">
-          </label>
-          <label>Contacts <small>(one per line: Name: number)</small>
-            <textarea data-key="contacts" rows="4" placeholder="Mom: +91 98765 43210&#10;Rahul: +91 91234 56789"></textarea>
-          </label>
-          <label>Default music app
-            <select data-key="musicApp">
-              <option value="youtube">YouTube</option>
-              <option value="youtube_music">YouTube Music</option>
-              <option value="spotify">Spotify</option>
-            </select>
-          </label>
-          <label class="check"><input data-key="autoOpen" type="checkbox"> Open apps automatically (otherwise tap the card)</label>
-          <button type="button" id="btn-notify" class="wide">Allow notifications</button>
-        </fieldset>
+          <article class="s-card">
+            <header class="s-head"><h3>Connection</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Keys typed here are stored only on this phone. To keep them off the phone, put them in the Jarvis server's <code>.env</code> file and choose “Always via Jarvis server”.</p>
+              <p id="server-info" class="hint"></p>
+              <label>Route requests
+                <select data-key="connection">
+                  <option value="auto">Auto (use the Jarvis server if it has the key)</option>
+                  <option value="direct">Direct from phone</option>
+                  <option value="server">Always via Jarvis server</option>
+                </select>
+              </label>
+              <label>Jarvis server URL <small>optional</small>
+                <input data-key="serverUrl" type="url" placeholder="https://my-pc.tailnet.ts.net:8080" autocomplete="off">
+              </label>
+              <label>Jarvis server token <small>if JARVIS_TOKEN is set</small>
+                <input data-key="serverToken" type="password" autocomplete="off">
+              </label>
+            </div>
+          </article>
 
-        <fieldset>
-          <legend>Memory</legend>
-          <p id="memory-view" class="hint"></p>
-          <div class="row">
-            <button type="button" id="btn-clear-chat" class="wide">Clear conversation</button>
-            <button type="button" id="btn-clear-mem" class="wide danger">Forget everything</button>
-          </div>
-        </fieldset>
-        <p class="hint">Keys typed here are stored only in this phone's browser. To keep keys off the phone, put them in the server's <code>.env</code> file instead.</p>
+          <article class="s-card">
+            <header class="s-head"><h3>OpenJarvis on your computer</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Optional. Fill this in to use OpenJarvis as the provider, or to let Jarvis hand bigger tasks to your computer while it uses Gemini or Grok.</p>
+              <div data-show="openjarvis-any" class="stack">
+                <label>OpenJarvis URL <small>optional if the Jarvis server has OPENJARVIS_URL</small>
+                  <input data-key="ojUrl" type="url" placeholder="https://my-pc.tailnet.ts.net:8000" autocomplete="off">
+                </label>
+                <label>OpenJarvis API key <small>optional</small>
+                  <input data-key="ojKey" type="password" autocomplete="off">
+                </label>
+                <label>OpenJarvis model <small>blank = first available</small>
+                  <span class="row"><input data-key="ojModel" list="models-openjarvis"><button type="button" class="btn small" data-load="openjarvis">Load</button></span>
+                  <datalist id="models-openjarvis"></datalist>
+                </label>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- ============================================================ Voice -->
+        <section class="tab-panel" data-panel="voice" hidden>
+          <article class="s-card">
+            <header class="s-head"><h3>Listening</h3></header>
+            <div class="s-body">
+              <div class="row">
+                <label class="grow">Wake word
+                  <input data-key="wakeWord" placeholder="jarvis">
+                </label>
+                <label class="grow">Language
+                  <input data-key="lang" list="langs" placeholder="en-IN">
+                  <datalist id="langs">
+                    <option value="en-IN"><option value="en-US"><option value="en-GB"><option value="hi-IN"><option value="ta-IN"><option value="te-IN"><option value="ml-IN"><option value="kn-IN">
+                  </datalist>
+                </label>
+              </div>
+              <label class="switch"><input data-key="followUp" type="checkbox"><i></i>
+                <span><b>Keep listening after a question</b><small>reply without tapping when Jarvis asks you something</small></span></label>
+            </div>
+          </article>
+
+          <article class="s-card">
+            <header class="s-head"><h3>Speaking</h3></header>
+            <div class="s-body">
+              <label class="switch"><input data-key="speak" type="checkbox"><i></i>
+                <span><b>Speak replies aloud</b><small>turn off to only read them</small></span></label>
+              <label>Voice
+                <select data-key="voiceURI" id="voice-select"><option value="">Default</option></select>
+              </label>
+              <label>Speed <output id="rate-out" class="value"></output>
+                <input data-key="rate" type="range" min="0.7" max="1.5" step="0.05">
+              </label>
+            </div>
+          </article>
+
+          <article class="s-card">
+            <header class="s-head"><h3>Robot</h3></header>
+            <div class="s-body">
+              <label class="switch"><input data-key="buddySound" type="checkbox"><i></i>
+                <span><b>Robot beeps</b><small>little sounds when you poke, pet or talk to it</small></span></label>
+            </div>
+          </article>
+        </section>
+
+        <!-- ============================================================ Phone -->
+        <section class="tab-panel" data-panel="phone" hidden>
+          <article class="s-card">
+            <header class="s-head"><h3>Floating Jarvis</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>The bubble floats over every app and keeps running in the background. Drag it onto the ✕ at the bottom of the screen to close it.</p>
+              <ol class="steps">
+                <li><button type="button" id="btn-perms" class="btn">Grant permissions</button></li>
+                <li><button type="button" id="btn-battery" class="btn">Allow running in background</button></li>
+              </ol>
+              <div class="row">
+                <button type="button" id="btn-bubble-start" class="btn primary">Start bubble</button>
+                <button type="button" id="btn-bubble-stop" class="btn">Stop bubble</button>
+              </div>
+              <label class="switch"><input type="checkbox" id="chk-boot"><i></i>
+                <span><b>Start when the phone turns on</b><small>the bubble comes back after a restart</small></span></label>
+            </div>
+          </article>
+        </section>
+
+        <!-- ============================================================ About -->
+        <section class="tab-panel" data-panel="about" hidden>
+          <article class="s-card">
+            <header class="s-head"><h3>Updates</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Updates come from the project's GitHub releases. Jarvis downloads the new version and Android asks you to confirm the install. Your settings and memory are kept.</p>
+              <div class="update-status" id="upd-status" data-tone="idle">
+                <span class="upd-dot"></span>
+                <span><b id="upd-title">Not checked yet</b><small id="upd-detail">tap Check for updates</small></span>
+              </div>
+              <div class="progress" id="upd-progress" hidden><i></i></div>
+              <div class="notes" id="upd-notes" hidden></div>
+              <div class="row">
+                <button type="button" id="btn-update" class="btn primary">Check for updates</button>
+              </div>
+              <label class="switch in-app-only"><input data-key="autoUpdateCheck" type="checkbox"><i></i>
+                <span><b>Check automatically</b><small>look for a new version each time you open Jarvis</small></span></label>
+            </div>
+          </article>
+
+          <article class="s-card">
+            <header class="s-head"><h3>This app</h3></header>
+            <div class="s-body">
+              <dl class="kv" id="app-kv"></dl>
+            </div>
+          </article>
+        </section>
       </div>
     </form>
   </dialog>

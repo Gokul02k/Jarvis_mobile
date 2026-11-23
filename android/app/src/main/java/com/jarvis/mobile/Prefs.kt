@@ -11,6 +11,9 @@ object Prefs {
     fun bubbleWanted(ctx: Context) = p(ctx).getBoolean("bubble", false)
     fun setBubbleWanted(ctx: Context, on: Boolean) = p(ctx).edit().putBoolean("bubble", on).apply()
 
+    fun restartAfterUpdate(ctx: Context) = p(ctx).getBoolean("restartAfterUpdate", false)
+    fun setRestartAfterUpdate(ctx: Context, on: Boolean) = p(ctx).edit().putBoolean("restartAfterUpdate", on).apply()
+
     /** (onRight, y) */
     fun bubblePos(ctx: Context): Pair<Boolean, Int>? {
         val y = p(ctx).getInt("y", -1)
