@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#05080d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Jarvis</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <div>
+        <h1>J.A.R.V.I.S.</h1>
+        <p id="model-label" class="sub">—</p>
+      </div>
+    </div>
+    <button id="btn-settings" class="icon-btn" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </header>
+
+  <main id="log" aria-live="polite">
+    <div class="welcome" id="welcome">
+      <p class="welcome-title">Good to see you.</p>
+      <p>Tap the orb and speak, or turn on <b>Wake word</b> and say <b>“Jarvis…”</b></p>
+      <ul class="examples">
+        <li>“What's the weather tomorrow?”</li>
+        <li>“Call Mom”</li>
+        <li>“Play Believer on YouTube”</li>
+        <li>“Remind me at 6 pm to buy milk”</li>
+        <li>“Navigate to the airport”</li>
+        <li>“Turn on the flashlight”</li>
+      </ul>
+    </div>
+  </main>
+
+  <section class="dock">
+    <div id="timers" class="timers" hidden></div>
+    <p id="live" class="live" aria-live="polite"></p>
+    <form id="text-form" class="text-form" hidden>
+      <input id="text-input" type="text" placeholder="Type a command…" autocomplete="off" enterkeyhint="send">
+      <button type="submit" class="send" aria-label="Send">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12 2-12 2z"/></svg>
+      </button>
+    </form>
+    <div class="controls">
+      <button id="btn-keyboard" class="side-btn" aria-label="Type instead">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M8 16h8M10 13h4"/></svg>
+        <span>Type</span>
+      </button>
+      <button id="orb" class="orb" data-state="idle" aria-label="Talk to Jarvis">
+        <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
+        <span class="core"></span>
+      </button>
+      <button id="btn-wake" class="side-btn" aria-pressed="false" aria-label="Wake word">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>
+        <span>Wake word</span>
+      </button>
+    </div>
+    <p id="status" class="status">Tap to speak</p>
+  </section>
+
+  <dialog id="settings">
+    <form method="dialog" class="settings-form" id="settings-form">
+      <header class="settings-head">
+        <h2>Settings</h2>
+        <button value="close" class="icon-btn" aria-label="Close">✕</button>
+      </header>
+
+      <div class="settings-body">
+        <p id="server-info" class="hint"></p>
+
+        <fieldset>
+          <legend>AI brain</legend>
+          <label>Provider
+            <select data-key="provider">
+              <option value="gemini">Google Gemini</option>
+              <option value="grok">xAI Grok</option>
+              <option value="openjarvis">OpenJarvis (your computer)</option>
+            </select>
+          </label>
+
+          <div data-show="gemini">
+            <label>Gemini API key
+              <input data-key="geminiKey" type="password" placeholder="AIza…  (aistudio.google.com/apikey)" autocomplete="off">
+            </label>
+            <label>Gemini model
+              <span class="row"><input data-key="geminiModel" list="models-gemini" placeholder="gemini-2.5-flash"><button type="button" class="small" data-load="gemini">Load</button></span>
+              <datalist id="models-gemini"></datalist>
+            </label>
+          </div>
+
+          <div data-show="grok">
+            <label>Grok (xAI) API key
+              <input data-key="xaiKey" type="password" placeholder="xai-…  (console.x.ai)" autocomplete="off">
+            </label>
+            <label>Grok model
+              <span class="row"><input data-key="grokModel" list="models-grok" placeholder="grok-4"><button type="button" class="small" data-load="grok">Load</button></span>
+              <datalist id="models-grok"></datalist>
+            </label>
+          </div>
+
+          <div data-show="openjarvis-any">
+            <label>OpenJarvis URL <small>(optional if the Jarvis server has OPENJARVIS_URL)</small>
+              <input data-key="ojUrl" type="url" placeholder="https://my-pc.tailnet.ts.net:8000" autocomplete="off">
+            </label>
+            <label>OpenJarvis API key <small>(optional)</small>
+              <input data-key="ojKey" type="password" autocomplete="off">
+            </label>
+            <label>OpenJarvis model <small>(blank = first available)</small>
+              <span class="row"><input data-key="ojModel" list="models-openjarvis"><button type="button" class="small" data-load="openjarvis">Load</button></span>
+              <datalist id="models-openjarvis"></datalist>
+            </label>
+          </div>
+
+          <label>Connection
+            <select data-key="connection">
+              <option value="auto">Auto (use Jarvis server if it has the key)</option>
+              <option value="direct">Direct from phone (keys stored on phone)</option>
+              <option value="server">Always via Jarvis server</option>
+            </select>
+          </label>
+          <label>Jarvis server token <small>(if JARVIS_TOKEN is set on the server)</small>
+            <input data-key="serverToken" type="password" autocomplete="off">
+          </label>
+          <button type="button" id="btn-test" class="wide">Test connection</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Voice</legend>
+          <label>Wake word
+            <input data-key="wakeWord" placeholder="jarvis">
+          </label>
+          <label>Speech language
+            <input data-key="lang" list="langs" placeholder="en-IN">
+            <datalist id="langs">
+              <option value="en-IN"><option value="en-US"><option value="en-GB"><option value="hi-IN"><option value="ta-IN"><option value="te-IN"><option value="ml-IN"><option value="kn-IN">
+            </datalist>
+          </label>
+          <label>Jarvis voice
+            <select data-key="voiceURI" id="voice-select"><option value="">Default</option></select>
+          </label>
+          <label>Speaking speed
+            <input data-key="rate" type="range" min="0.7" max="1.5" step="0.05">
+          </label>
+          <label class="check"><input data-key="speak" type="checkbox"> Speak replies aloud</label>
+          <label class="check"><input data-key="followUp" type="checkbox"> Keep listening when Jarvis asks a question</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Personal</legend>
+          <label>Your name
+            <input data-key="userName" placeholder="What should Jarvis call you?">
+          </label>
+          <label>Contacts <small>(one per line: Name: number)</small>
+            <textarea data-key="contacts" rows="4" placeholder="Mom: +91 98765 43210&#10;Rahul: +91 91234 56789"></textarea>
+          </label>
+          <label>Default music app
+            <select data-key="musicApp">
+              <option value="youtube">YouTube</option>
+              <option value="youtube_music">YouTube Music</option>
+              <option value="spotify">Spotify</option>
+            </select>
+          </label>
+          <label class="check"><input data-key="autoOpen" type="checkbox"> Open apps automatically (otherwise tap the card)</label>
+          <button type="button" id="btn-notify" class="wide">Allow notifications</button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Memory</legend>
+          <p id="memory-view" class="hint"></p>
+          <div class="row">
+            <button type="button" id="btn-clear-chat" class="wide">Clear conversation</button>
+            <button type="button" id="btn-clear-mem" class="wide danger">Forget everything</button>
+          </div>
+        </fieldset>
+        <p class="hint">Keys typed here are stored only in this phone's browser. To keep keys off the phone, put them in the server's <code>.env</code> file instead.</p>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
