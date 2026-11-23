@@ -1,11 +1,8 @@
-// The Jarvis companion: a little animated creature in a floating circle.
-// Faces and animals are ported from the Daymark companion (robot, cat, puppy, bunny, panda, pig).
+// The Jarvis companion: a little animated robot in a floating circle.
 //
 //   const b = createBuddy(el, { kind, onTap, onDoubleTap, onDrag });
 //   b.setState('idle' | 'wake' | 'listening' | 'thinking' | 'speaking' | 'error')
-//   b.react('happy' | 'pet' | 'sneeze' | ...);   b.say('text', ms);   b.setKind('cat');
-
-export const KINDS = { robot: 'Robot (Jarvis)', cat: 'Cat', puppy: 'Puppy', bunny: 'Bunny', panda: 'Panda', pig: 'Pig' };
+//   b.react('happy' | 'pet' | 'sneeze' | ...);   b.say('text', ms);
 
 const FACES = {
   okay: { eyes: 'open', mouth: 'small' },
@@ -63,15 +60,6 @@ const STATE_LOOK = {
   error: { face: 'sad', anim: 'idle' },
 };
 
-// Recorded animal voices from Daymark (see sounds/CREDITS.md). Robot uses synthesized beeps.
-const CLIPS = {
-  cat: { poke: ['meow-short', 'meow'], pet: ['purr'], sad: ['meow-sad'], listen: ['meow-ask'] },
-  puppy: { poke: ['bark', 'yip'], pet: ['yip'], sad: ['whine'], listen: ['bark-double'] },
-  bunny: { poke: ['squeak'], pet: ['munch'], sad: ['squeak'], listen: ['squeak'] },
-  panda: { poke: ['chirp', 'bleat'], pet: ['munch'], sad: ['bleat'], listen: ['chirp'] },
-  pig: { poke: ['oink', 'oink-double'], pet: ['grunt'], sad: ['squeal'], listen: ['oink'] },
-};
-
 const SLEEP_AFTER_MS = 60 * 1000;
 const QUIRKS = ['wink', 'blep', 'sideeye'];
 const BITS = [[-26, -20], [-14, -32], [0, -38], [14, -32], [26, -20], [32, -4]];
@@ -96,7 +84,7 @@ function beep(freqs, dur = 0.09) {
 }
 
 export function createBuddy(root, opts = {}) {
-  let kind = opts.kind || 'robot';
+  const kind = 'robot';
   let soundOn = opts.sound !== false;
   let state = 'idle';
   let reaction = null, reactTimer = 0;
@@ -157,12 +145,7 @@ export function createBuddy(root, opts = {}) {
 
   function play(what) {
     if (!soundOn) return;
-    const clips = CLIPS[kind]?.[what];
-    if (clips) {
-      try { const a = new Audio(`sounds/${kind}/${pick(clips)}.mp3`); a.volume = 0.7; a.play().catch(() => { }); } catch { }
-    } else {
-      beep({ poke: [880, 1320], pet: [660, 880, 1100], sad: [440, 330], listen: [990, 1480] }[what] || [880]);
-    }
+    beep({ poke: [880, 1320], pet: [660, 880, 1100], sad: [440, 330], listen: [990, 1480] }[what] || [880]);
   }
 
   // ------------------------------------------------------------ public api
@@ -306,7 +289,7 @@ export function createBuddy(root, opts = {}) {
 
     if (asleep) { asleep = false; react('wake'); }
 
-    const noseY = kind === 'pig' ? 39 : 36.5;
+    const noseY = 36.5;
     if (state !== 'listening' && Math.abs(fx - 32) < 5.5 && Math.abs(fy - noseY) < 4.5) {
       clearTimeout(tapTimer);
       react('achoo');
@@ -327,7 +310,6 @@ export function createBuddy(root, opts = {}) {
   return {
     react, say, setState,
     get state() { return state; },
-    setKind(k) { kind = KINDS[k] ? k : 'robot'; render(); },
     setSound(on) { soundOn = on; },
     wake() { asleep = false; lastActive = Date.now(); render(); },
     play,
@@ -336,67 +318,31 @@ export function createBuddy(root, opts = {}) {
   };
 }
 
-// ---------------------------------------------------------------- SVG faces (from Daymark)
+// ---------------------------------------------------------------- SVG face
 
 function faceSVG(kind, face, look, shut) {
   const [lx, ly] = look;
   const blinks = face.eyes === 'open' || face.eyes === 'wide' || face.eyes === 'droop';
   const cheeks = face.cheeks
     ? '<ellipse cx="19" cy="40.5" rx="3.4" ry="2.1" class="f-cheek"/><ellipse cx="45" cy="40.5" rx="3.4" ry="2.1" class="f-cheek"/>' : '';
-  const mouth = kind === 'pig' ? `<g transform="translate(0 7)">${mouthSVG(face.mouth)}</g>` : mouthSVG(face.mouth);
   return `<svg viewBox="0 0 64 64" class="buddy-svg k-${kind}" aria-hidden="true">
-    ${headSVG(kind)}${cheeks}
+    ${headSVG()}${cheeks}
     <g transform="translate(${lx.toFixed(2)} ${ly.toFixed(2)})">
       <g class="f-blink${blinks && shut ? ' is-shut' : ''}">${eyeSVG(face.eyes, 24, 'left')}${eyeSVG(face.eyes, 40, 'right')}</g>
     </g>
     ${face.brow ? '<path d="M36.5 23.2 L43.5 21.8" class="e-line thin"/>' : ''}
-    ${noseSVG(kind)}${mouth}
+    ${mouthSVG(face.mouth)}
     ${face.tear ? '<path d="M19.6 35.2c1.1 1.6 1.7 2.5 1.7 3.3a1.7 1.7 0 0 1-3.4 0c0-.8.6-1.7 1.7-3.3z" class="f-drop f-tear"/>' : ''}
   </svg>`;
 }
 
-function headSVG(kind) {
-  switch (kind) {
-    case 'cat': return `
-      <path d="M11.5 23 L14 4.5 L27.5 14.5 Z" class="b-fur"/><path d="M15.4 17.5 L16.7 8.8 L23.6 14 Z" class="b-inner"/>
-      <path d="M52.5 23 L50 4.5 L36.5 14.5 Z" class="b-fur"/><path d="M48.6 17.5 L47.3 8.8 L40.4 14 Z" class="b-inner"/>
-      <ellipse cx="32" cy="34" rx="25" ry="21" class="b-fur"/><ellipse cx="32" cy="41.5" rx="11" ry="7.5" class="b-muzzle"/>
-      <path d="M7.5 36.5 L18 38 M8 42 L18 40.8 M56.5 36.5 L46 38 M56 42 L46 40.8" class="b-whisker"/>`;
-    case 'puppy': return `
-      <ellipse cx="32" cy="33.5" rx="23.5" ry="21" class="b-fur"/><ellipse cx="41" cy="27.5" rx="7.5" ry="6.5" class="b-spot"/>
-      <path d="M13 15 C4.5 16.5 2 33 7.5 40.5 C10.2 44 14.6 40.6 15 35.5 Z" class="b-ear"/>
-      <path d="M51 15 C59.5 16.5 62 33 56.5 40.5 C53.8 44 49.4 40.6 49 35.5 Z" class="b-ear"/>
-      <ellipse cx="32" cy="41.5" rx="11" ry="8" class="b-muzzle"/>`;
-    case 'bunny': return `
-      <ellipse cx="23.5" cy="12.5" rx="5.6" ry="12" transform="rotate(-8 23.5 12.5)" class="b-fur"/>
-      <ellipse cx="23.5" cy="13" rx="2.6" ry="8.4" transform="rotate(-8 23.5 13)" class="b-inner"/>
-      <ellipse cx="40.5" cy="12.5" rx="5.6" ry="12" transform="rotate(8 40.5 12.5)" class="b-fur"/>
-      <ellipse cx="40.5" cy="13" rx="2.6" ry="8.4" transform="rotate(8 40.5 13)" class="b-inner"/>
-      <ellipse cx="32" cy="36" rx="23" ry="19" class="b-fur"/>`;
-    case 'pig': return `
-      <path d="M12.5 23 L11.5 7 L26 13.5 Z" class="b-fur"/><path d="M15.2 18.6 L14.8 10.8 L22 14.2 Z" class="b-inner"/>
-      <path d="M51.5 23 L52.5 7 L38 13.5 Z" class="b-fur"/><path d="M48.8 18.6 L49.2 10.8 L42 14.2 Z" class="b-inner"/>
-      <ellipse cx="32" cy="34" rx="25" ry="21" class="b-fur"/>`;
-    case 'panda': return `
-      <circle cx="14" cy="16.5" r="7.5" class="b-patch"/><circle cx="50" cy="16.5" r="7.5" class="b-patch"/>
-      <ellipse cx="32" cy="34" rx="25" ry="21" class="b-fur"/>
-      <ellipse cx="23" cy="31.5" rx="6.8" ry="5.6" transform="rotate(-25 23 31.5)" class="b-patch"/>
-      <ellipse cx="41" cy="31.5" rx="6.8" ry="5.6" transform="rotate(25 41 31.5)" class="b-patch"/>`;
-    default: return `
-      <line x1="32" y1="13" x2="32" y2="6.5" class="r-stalk"/><circle cx="32" cy="5" r="3.2" class="r-bulb"/>
-      <rect x="3" y="27" width="6" height="12" rx="3" class="r-ear"/><rect x="55" y="27" width="6" height="12" rx="3" class="r-ear"/>
-      <rect x="7.5" y="12.5" width="49" height="41" rx="14" class="r-head"/>
-      <path d="M13.5 19 q3.5 -3 9 -3.4" class="r-shine"/>
-      <rect x="13" y="19.5" width="38" height="28" rx="10" class="r-screen"/>`;
-  }
-}
-
-function noseSVG(kind) {
-  if (kind === 'cat' || kind === 'bunny') return '<path d="M30.3 35.4 h3.4 l-1.7 2 z" class="b-nose"/>';
-  if (kind === 'puppy') return '<ellipse cx="32" cy="36.4" rx="2.6" ry="1.8" class="b-nose"/>';
-  if (kind === 'panda') return '<ellipse cx="32" cy="36.6" rx="2.3" ry="1.5" class="b-nose"/>';
-  if (kind === 'pig') return '<ellipse cx="32" cy="39" rx="8.5" ry="5.8" class="b-snout"/><ellipse cx="29" cy="39" rx="1.4" ry="2.1" class="b-nose"/><ellipse cx="35" cy="39" rx="1.4" ry="2.1" class="b-nose"/>';
-  return '';
+function headSVG() {
+  return `
+    <line x1="32" y1="13" x2="32" y2="6.5" class="r-stalk"/><circle cx="32" cy="5" r="3.2" class="r-bulb"/>
+    <rect x="3" y="27" width="6" height="12" rx="3" class="r-ear"/><rect x="55" y="27" width="6" height="12" rx="3" class="r-ear"/>
+    <rect x="7.5" y="12.5" width="49" height="41" rx="14" class="r-head"/>
+    <path d="M13.5 19 q3.5 -3 9 -3.4" class="r-shine"/>
+    <rect x="13" y="19.5" width="38" height="28" rx="10" class="r-screen"/>`;
 }
 
 function eyeSVG(kind, cx, side) {

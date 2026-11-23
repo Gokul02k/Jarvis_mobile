@@ -1,4 +1,4 @@
-/* Floating Jarvis companion bubble. Faces/animations ported from Daymark. */
+/* Floating Jarvis companion bubble: an animated robot. */
 .jb {
   --ball: 68px;
   --state: #35d0ff;
@@ -102,11 +102,6 @@
 /* ---- face colours ---- */
 .buddy-svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .k-robot { --b-eye: #35d0ff; --b-mouth: #35d0ff; --b-lid: #1b2633; --b-glint: #fff; }
-.k-cat { --b-fur: #f6b46a; --b-edge: #c47a35; --b-inner: #f9a8c9; --b-muzzle: #fde7cb; --b-eye: #3b2a20; --b-mouth: #3b2a20; --b-lid: #f6b46a; --b-glint: #fff; --b-nose: #ec6a9c; }
-.k-puppy { --b-fur: #e8c59a; --b-edge: #a97a4e; --b-ear: #9c6b44; --b-spot: #d6a670; --b-muzzle: #f8e8d2; --b-eye: #2f241c; --b-mouth: #2f241c; --b-lid: #e8c59a; --b-glint: #fff; --b-nose: #2f241c; }
-.k-bunny { --b-fur: #f7f3ee; --b-edge: #c9b9a8; --b-inner: #f9b4cf; --b-eye: #3a2f2a; --b-mouth: #3a2f2a; --b-lid: #f7f3ee; --b-glint: #fff; --b-nose: #ec6a9c; }
-.k-panda { --b-fur: #fbfbf9; --b-edge: #c9c9c4; --b-patch: #34363b; --b-eye: #fff; --b-mouth: #2b2b2b; --b-lid: #34363b; --b-glint: #34363b; --b-nose: #2b2b2b; }
-.k-pig { --b-fur: #f9b8c8; --b-edge: #e07d97; --b-inner: #f287a3; --b-snout: #f59db3; --b-eye: #3a2329; --b-mouth: #3a2329; --b-lid: #f9b8c8; --b-glint: #fff; --b-nose: #b54a68; }
 
 .r-head { fill: #e6ecf3; stroke: #9aa9bb; stroke-width: 1.5; }
 .r-ear { fill: #9aa9bb; }
@@ -114,15 +109,6 @@
 .r-bulb { fill: var(--state, #35d0ff); animation: buddy-pulse 2.4s ease-in-out infinite; }
 .r-shine { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; opacity: .7; }
 .r-screen { fill: #1b2633; }
-.b-fur { fill: var(--b-fur); stroke: var(--b-edge); stroke-width: 1.5; }
-.b-inner { fill: var(--b-inner); }
-.b-muzzle { fill: var(--b-muzzle); }
-.b-ear { fill: var(--b-ear); }
-.b-spot { fill: var(--b-spot); }
-.b-patch { fill: var(--b-patch); }
-.b-nose { fill: var(--b-nose); }
-.b-snout { fill: var(--b-snout); stroke: var(--b-edge); stroke-width: 1.2; }
-.b-whisker { fill: none; stroke: var(--b-edge); stroke-width: 1.1; stroke-linecap: round; }
 .e-fill { fill: var(--b-eye); }
 .e-glint { fill: var(--b-glint); opacity: .9; }
 .e-lid { fill: var(--b-lid); }

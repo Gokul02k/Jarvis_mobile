@@ -103,8 +103,12 @@ async function geminiChat(s, { system, messages, tools, signal }) {
   const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents: toGemini(messages),
-    generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
+    generationConfig: { temperature: 0.6, maxOutputTokens: 1024 },
   };
+  const model = (s.geminiModel || 'gemini-2.5-flash').replace(/^models\//, '');
+  // Voice replies should be instant: turn off (or minimise) the model's hidden "thinking".
+  const thinking = thinkingFor(model);
+  if (thinking) body.generationConfig.thinkingConfig = thinking;
   if (tools?.length) {
     body.tools = [{
       functionDeclarations: tools.map(t => {
@@ -114,10 +118,17 @@ async function geminiChat(s, { system, messages, tools, signal }) {
       }),
     }];
   }
-  const model = (s.geminiModel || 'gemini-2.5-flash').replace(/^models\//, '');
-  const data = await request(`${base}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: 'POST', headers: headersFor(s, 'gemini', viaServer), body: JSON.stringify(body), signal,
-  });
+  const url = `${base}/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const headers = headersFor(s, 'gemini', viaServer);
+  let data;
+  try {
+    data = await request(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  } catch (e) {
+    // A model that rejects the thinking setting: retry once with the model's default.
+    if (!(e.status === 400 && body.generationConfig.thinkingConfig && /think/i.test(e.message))) throw e;
+    delete body.generationConfig.thinkingConfig;
+    data = await request(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  }
   const cand = data.candidates?.[0];
   if (!cand) {
     const reason = data.promptFeedback?.blockReason;
@@ -131,6 +142,13 @@ async function geminiChat(s, { system, messages, tools, signal }) {
     args: p.functionCall.args || {},
   }));
   return { text, toolCalls, geminiParts: parts };
+}
+
+function thinkingFor(model) {
+  if (/^gemini-2\.5-flash/.test(model)) return { thinkingBudget: 0 }; // off
+  if (/^gemini-2\.5-pro/.test(model)) return { thinkingBudget: 128 }; // pro can't turn it off; use the minimum
+  if (/^gemini-[3-9]/.test(model)) return { thinkingLevel: 'low' };
+  return null;
 }
 
 async function geminiModels(s) {
@@ -218,6 +236,8 @@ export function pickModel(provider, ids) {
     pool = ids.filter(id => /grok/.test(id) && !/image|vision|imagine|video/.test(id));
     const fast = pool.filter(id => /fast/.test(id));
     if (fast.length) pool = fast;
+    const quick = pool.filter(id => /non-reasoning/.test(id));
+    if (quick.length) pool = quick;
     if (!pool.length) pool = ids;
   }
   return [...pool].sort((a, b) => versionScore(b) - versionScore(a) || a.length - b.length)[0];

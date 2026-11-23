@@ -1,6 +1,6 @@
 import { chat, listModels, pickModel, serverBase } from './llm.js';
 import { toolsFor, runTool, initScheduler, activeTimers, store } from './tools.js';
-import { createBuddy, KINDS } from './buddy.js';
+import { createBuddy } from './buddy.js';
 import { NATIVE, IS_BUBBLE, NativeSpeechRecognition, nativeSpeak, nativeStopSpeaking, nativeSync } from './native.js';
 
 if (IS_BUBBLE) document.documentElement.classList.add('bubble-mode');
@@ -19,7 +19,7 @@ const DEFAULTS = {
   lang: navigator.language || 'en-US',
   voiceURI: '', rate: 1.05, speak: true, followUp: true,
   userName: '', contacts: '', musicApp: 'youtube', autoOpen: true,
-  buddyKind: 'robot', buddySound: true, serverUrl: '',
+  buddySound: true, serverUrl: '',
 };
 const settings = { ...DEFAULTS, ...store.get('settings', {}) };
 const saveSettings = () => {
@@ -42,7 +42,6 @@ const buddyEl = document.createElement('div');
 buddyEl.id = 'buddy';
 document.body.append(buddyEl);
 const buddy = createBuddy(buddyEl, {
-  kind: settings.buddyKind,
   sound: settings.buddySound,
   onTap: () => onTalk(),
   onDoubleTap: () => {
@@ -531,12 +530,10 @@ form.addEventListener('input', (e) => {
   if (key === 'provider') syncForm();
   updateModelLabel();
   if (key === 'wakeWord') setState(state);
-  if (key === 'buddyKind') { buddy.setKind(settings.buddyKind); buddy.react('hello'); NATIVE?.settingsChanged(); }
   if (key === 'buddySound') buddy.setSound(settings.buddySound);
   if (key === 'serverUrl') detectServer();
 });
 
-$('#buddy-kind').innerHTML = Object.entries(KINDS).map(([k, label]) => `<option value="${k}">${label}</option>`).join('');
 
 // ---- Android-only controls
 if (NATIVE) {

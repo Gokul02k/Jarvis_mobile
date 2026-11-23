@@ -17,9 +17,9 @@ It thinks with **Gemini**, **Grok** or your own **OpenJarvis**.
 ![Grok](https://img.shields.io/badge/xAI-Grok-000000?style=for-the-badge&logo=x&logoColor=white)
 ![OpenJarvis](https://img.shields.io/badge/OpenJarvis-compatible-8a2be2?style=for-the-badge)
 
-<img src="docs/companions.png" width="620" alt="Robot, cat, puppy, bunny, panda and pig companions">
+<img src="docs/bubble.png" width="620" alt="The Jarvis robot bubble">
 
-<sub>Pick your buddy: Robot · Cat · Puppy · Bunny · Panda · Pig. The ring shows what it's doing: <b>blue</b> listening · <b>amber</b> thinking · <b>green</b> speaking</sub>
+<sub>The ring shows what it's doing: <b>blue</b> listening · <b>amber</b> thinking · <b>green</b> speaking</sub>
 
 <br><br>
 
@@ -34,7 +34,7 @@ It thinks with **Gemini**, **Grok** or your own **OpenJarvis**.
 | | |
 |---|---|
 | 🫧 **Floating bubble** | A small circle that stays on screen over every app (Android), like a chat head. Drag it anywhere and it snaps to the edge. Drop it on the ✕ to close it |
-| 🐾 **A living companion** | Animated faces ported from Daymark. It blinks, its eyes follow your finger, it yawns and naps, and it reacts when you pet, poke, tickle or fling it. Animals make real sounds |
+| 🤖 **A living companion** | An animated Jarvis robot. It blinks, its eyes follow your finger, it yawns and naps, and it reacts when you pet, poke, tickle or fling it |
 | 🎙️ **Touch or call** | Tap it to talk, or turn on the wake word and just say **“Jarvis, …”** |
 | 🌙 **Runs in the background** | Foreground service with a mic, so it keeps listening while you use other apps. Optional start on boot |
 | 🧠 **Your choice of brain** | Google **Gemini**, xAI **Grok**, or **OpenJarvis** on your PC. Switch any time |
@@ -154,7 +154,7 @@ In the app, either choose **Provider → OpenJarvis**, or keep Gemini or Grok an
 | Path | Purpose |
 |---|---|
 | `web/app.js` | Voice state machine, agent loop, UI |
-| `web/buddy.js`, `buddy.css` | The animated companion (faces from Daymark) |
+| `web/buddy.js`, `buddy.css` | The animated robot companion |
 | `web/llm.js` | Gemini and OpenAI-compatible (Grok, OpenJarvis) function calling |
 | `web/tools.js` | All actions, with native versions when running in the app |
 | `web/native.js` | Bridge to Android (speech, HTTP, device controls) |
@@ -172,10 +172,10 @@ In the app, either choose **Provider → OpenJarvis**, or keep Gemini or Grok an
 
 ## 🔒 Privacy
 
-Voice is transcribed by your phone's speech service. Your request goes only to the AI provider you choose. Notes, memory and reminders stay on the device. Animal sounds come from Wikimedia Commons (see `web/sounds/CREDITS.md`).
+Voice is transcribed by your phone's speech service. Your request goes only to the AI provider you choose. Notes, memory and reminders stay on the device.
 
 ---
 
 <div align="center">
-Built with ❤️ · Inspired by Tony Stark's J.A.R.V.I.S. · Companions from Daymark · Powered by Gemini, Grok & OpenJarvis
+Built with ❤️ · Inspired by Tony Stark's J.A.R.V.I.S. · Powered by Gemini, Grok & OpenJarvis
 </div>
