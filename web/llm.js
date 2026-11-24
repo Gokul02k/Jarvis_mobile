@@ -291,8 +291,22 @@ export function explainError(e) {
   return 'Sorry, I ran into a problem reaching the AI.';
 }
 
-// Busy / out of quota: wait a moment and retry, then fall back to a backup model for this request.
-async function chatResilient(s, req) {
+// Gemini models this key can use, newest Flash first (asked once per app start).
+let geminiIds = null;
+async function geminiBackups(s) {
+  if (!geminiIds) geminiIds = await geminiModels(s).catch(() => []);
+  const usable = geminiIds.filter(id => /flash/.test(id) && !/thinking|exp|tts|image|live|audio/.test(id));
+  const newest = (list) => [...list].sort((a, b) => versionScore(b) - versionScore(a) || a.length - b.length);
+  const full = newest(usable.filter(id => !/lite/.test(id)));
+  const stable = full.filter(id => !/preview/.test(id));
+  const lite = newest(usable.filter(id => /lite/.test(id) && !/preview/.test(id)));
+  return [...new Set([...stable.slice(0, 2), ...full.slice(0, 1), ...lite.slice(0, 1), ...BACKUPS.gemini])]
+    .filter(id => id !== s.geminiModel);
+}
+
+// Busy / out of quota: retry once, then try other models (each has its own capacity and quota).
+// If a newer, non-lite model works, switch to it for good so the next request is fast again.
+async function chatResilient(s, req, onModelChange) {
   try {
     return await chatOnce(s, req);
   } catch (e) {
@@ -301,11 +315,15 @@ async function chatResilient(s, req) {
       await sleep(900, req.signal);
       try { return await chatOnce(s, req); } catch (e2) { if (!BUSY(e2)) throw e2; }
     }
-    const current = s.provider === 'gemini' ? s.geminiModel : null;
-    for (const model of BACKUPS[s.provider] || []) {
-      if (model === current) continue;
+    if (s.provider !== 'gemini') throw e;
+    for (const model of await geminiBackups(s)) {
       try {
-        return await chatOnce({ ...s, geminiModel: model }, req);
+        const res = await chatOnce({ ...s, geminiModel: model }, req);
+        if (!/lite/.test(model) && versionScore(model) >= versionScore(s.geminiModel || '')) {
+          s.geminiModel = model;
+          onModelChange?.('geminiModel', model);
+        }
+        return res;
       } catch (e3) {
         if (e3.name === 'AbortError') throw e3;
       }
@@ -317,7 +335,7 @@ async function chatResilient(s, req) {
 // Chat with automatic recovery when the model is busy, out of quota, or its name has been retired.
 export async function chat(s, req, onModelChange) {
   try {
-    return await chatResilient(s, req);
+    return await chatResilient(s, req, onModelChange);
   } catch (e) {
     if (s.provider === 'openjarvis' || !(e.status === 404 || (e.status === 400 && MODEL_MISSING.test(e.message)))) throw e;
     const ids = await listModels(s, s.provider).catch(() => []);
