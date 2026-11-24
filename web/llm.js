@@ -263,10 +263,61 @@ async function chatOnce(s, req) {
   throw new Error(`Unknown provider ${s.provider}`);
 }
 
-// Chat with automatic recovery when the configured model name has been retired.
-export async function chat(s, req, onModelChange) {
+// Backup models with their own (separate) free-tier quota, tried when the main one is busy or out of quota.
+const BACKUPS = { gemini: ['gemini-2.5-flash-lite', 'gemini-2.0-flash'] };
+const BUSY = (e) => e.status === 429 || e.status === 500 || e.status === 503 || e.status === 504;
+const sleep = (ms, signal) => new Promise((res, rej) => {
+  const t = setTimeout(res, ms);
+  signal?.addEventListener('abort', () => { clearTimeout(t); rej(new DOMException('Aborted', 'AbortError')); }, { once: true });
+});
+
+/** Turns an API error into a short sentence Jarvis can say out loud. */
+export function explainError(e) {
+  const msg = String(e?.message || e || '');
+  if (/^No .*API key/i.test(msg)) return 'I don\'t have an API key yet. Add one in Settings, under Brain.';
+  if (/API.?key not valid|API_KEY_INVALID|invalid api key|incorrect api key/i.test(msg) || e?.status === 401 || e?.status === 403) {
+    return 'The AI rejected the API key. Please check it in Settings, under Brain.';
+  }
+  if (e?.status === 429) {
+    const wait = msg.match(/retry in ([\d.]+)\s*s/i);
+    const daily = /per.?day|daily|PerDay/i.test(msg);
+    if (daily) return 'You\'ve used up today\'s free AI requests. It resets tomorrow, or you can use a different key or model.';
+    return `The AI's free usage limit was hit. Try again in ${wait ? Math.ceil(Number(wait[1])) + ' seconds' : 'a minute'}.`;
+  }
+  if (BUSY(e)) return 'The AI service is overloaded right now. Please try again in a moment.';
+  if (e?.status === 404 || (e?.status === 400 && MODEL_MISSING.test(msg))) return 'That AI model isn\'t available. Pick another one in Settings, under Brain.';
+  if (/^Network error/i.test(msg)) return 'I can\'t reach the internet right now. Check your connection.';
+  if (/blocked/i.test(msg)) return 'The AI refused to answer that one.';
+  return 'Sorry, I ran into a problem reaching the AI.';
+}
+
+// Busy / out of quota: wait a moment and retry, then fall back to a backup model for this request.
+async function chatResilient(s, req) {
   try {
     return await chatOnce(s, req);
+  } catch (e) {
+    if (!BUSY(e)) throw e;
+    if (e.status !== 429) {
+      await sleep(900, req.signal);
+      try { return await chatOnce(s, req); } catch (e2) { if (!BUSY(e2)) throw e2; }
+    }
+    const current = s.provider === 'gemini' ? s.geminiModel : null;
+    for (const model of BACKUPS[s.provider] || []) {
+      if (model === current) continue;
+      try {
+        return await chatOnce({ ...s, geminiModel: model }, req);
+      } catch (e3) {
+        if (e3.name === 'AbortError') throw e3;
+      }
+    }
+    throw e;
+  }
+}
+
+// Chat with automatic recovery when the model is busy, out of quota, or its name has been retired.
+export async function chat(s, req, onModelChange) {
+  try {
+    return await chatResilient(s, req);
   } catch (e) {
     if (s.provider === 'openjarvis' || !(e.status === 404 || (e.status === 400 && MODEL_MISSING.test(e.message)))) throw e;
     const ids = await listModels(s, s.provider).catch(() => []);

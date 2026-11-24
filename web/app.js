@@ -1,4 +1,4 @@
-import { chat, listModels, pickModel, serverBase } from './llm.js';
+import { chat, explainError, listModels, pickModel, serverBase } from './llm.js';
 import { toolsFor, runTool, initScheduler, activeTimers, store } from './tools.js';
 import { createBuddy } from './buddy.js';
 import { NATIVE, IS_BUBBLE, NativeSpeechRecognition, nativeSpeak, nativeStopSpeaking, nativeSync } from './native.js';
@@ -426,7 +426,7 @@ async function handleCommand(text) {
     history.length = startLen; // drop the failed turn so the conversation stays valid
     addMsg('error', e.message || String(e));
     buddy.react('sad');
-    reply = 'Sorry, I ran into a problem reaching the AI. ' + (e.message?.includes('key') ? 'Please check your API key in settings.' : '');
+    reply = explainError(e);
     trimHistory();
     await speak(reply);
     setState('idle'); resumeWake();
