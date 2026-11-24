@@ -1,4 +1,4 @@
-import { chat, explainError, listModels, pickModel, serverBase } from './llm.js';
+import { PROVIDERS, chat, cleanKey, explainError, hasCredentials, listModels, modelOf, pickModel, providerOf, serverBase } from './llm.js';
 import { toolsFor, runTool, initScheduler, activeTimers, store } from './tools.js';
 import { createBuddy } from './buddy.js';
 import { NATIVE, IS_BUBBLE, NativeSpeechRecognition, nativeSpeak, nativeStopSpeaking, nativeSync } from './native.js';
@@ -13,8 +13,13 @@ const DEFAULTS = {
   provider: 'gemini',
   connection: 'auto',
   geminiKey: '', geminiModel: 'gemini-2.5-flash',
-  xaiKey: '', grokModel: 'grok-4',
+  xaiKey: '', grokModel: '',
+  openaiKey: '', openaiModel: '', claudeKey: '', claudeModel: '',
+  groqKey: '', groqModel: '', openrouterKey: '', openrouterModel: '',
+  deepseekKey: '', deepseekModel: '', mistralKey: '', mistralModel: '',
+  customUrl: '', customKey: '', customModel: '',
   ojUrl: '', ojKey: '', ojModel: '',
+  fallbackProviders: true,
   serverToken: '',
   wakeWord: 'jarvis',
   lang: navigator.language || 'en-US',
@@ -23,6 +28,8 @@ const DEFAULTS = {
   buddySound: true, serverUrl: '', autoUpdateCheck: true,
 };
 const settings = { ...DEFAULTS, ...store.get('settings', {}) };
+if (!PROVIDERS[settings.provider]) settings.provider = 'gemini';
+if (settings.grokModel === 'grok-4') settings.grokModel = ''; // old slow default: let Jarvis pick a fast one
 const saveSettings = () => {
   const { _server, ...rest } = settings;
   store.set('settings', rest);
@@ -381,9 +388,7 @@ function trimHistory() {
 }
 
 function updateModelLabel() {
-  const m = settings.provider === 'gemini' ? settings.geminiModel
-    : settings.provider === 'grok' ? settings.grokModel : (settings.ojModel || 'OpenJarvis');
-  $('#model-label').textContent = `${{ gemini: 'Gemini', grok: 'Grok', openjarvis: 'OpenJarvis' }[settings.provider]} · ${m}`;
+  $('#model-label').textContent = `${providerOf(settings).label} · ${modelOf(settings) || 'automatic'}`;
 }
 
 async function handleCommand(text) {
@@ -410,7 +415,8 @@ async function handleCommand(text) {
     for (let step = 0; step < 6; step++) {
       const res = await chat(settings, {
         system: systemPrompt(), messages: history, tools: toolsFor(settings), signal: abort.signal,
-      }, (key, model) => { saveSettings(); updateModelLabel(); syncForm(); addTool('switched model', { model }); });
+      }, (key, model) => { saveSettings(); updateModelLabel(); syncForm(); addTool('switched model', { model }); },
+      (id) => addTool('answered by', { provider: PROVIDERS[id].label }));
       history.push({ role: 'assistant', content: res.text, toolCalls: res.toolCalls, geminiParts: res.geminiParts });
       if (!res.toolCalls.length) { reply = res.text; break; }
       if (res.text) addMsg('assistant', res.text);
@@ -513,14 +519,47 @@ function syncForm() {
     else el.value = v ?? '';
   }
   $('#rate-out').textContent = `${Number(settings.rate).toFixed(2)}×`;
-  const p = settings.provider;
-  for (const el of form.querySelectorAll('[data-show]')) {
-    const show = el.dataset.show;
-    el.hidden = !(show === p || show === 'openjarvis-any');
-  }
+  syncProviderUI();
   const mem = store.get('memory', []);
   $('#memory-view').textContent = mem.length ? `Remembered: ${mem.join(' · ')}` : 'Jarvis hasn\'t memorised anything about you yet.';
   $('#btn-notify').textContent = window.Notification?.permission === 'granted' ? 'Notifications allowed ✓' : 'Allow notifications';
+}
+
+// ---- Brain tab: provider chips, model field and the API key list are built from PROVIDERS.
+const escA = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+$('#provider-chips').innerHTML = Object.entries(PROVIDERS).map(([id, p]) =>
+  `<label class="chip" data-provider="${id}"><input type="radio" name="provider" data-key="provider" value="${id}"><span>${escA(p.label)}</span></label>`).join('');
+$('#key-list').innerHTML = Object.entries(PROVIDERS).filter(([id]) => id !== 'openjarvis').map(([id, p]) => `
+  <div class="key-row" data-provider="${id}">
+    <div class="key-top">
+      <b>${escA(p.label)}</b><small>${escA(p.note)}</small>
+      ${p.keyUrl ? `<a href="${p.keyUrl}" target="_blank" rel="noopener">Get key ↗</a>` : ''}
+    </div>
+    ${p.urlField ? `<input data-key="${p.urlField}" type="url" placeholder="https://my-server:8000/v1" autocomplete="off" aria-label="${escA(p.label)} URL">` : ''}
+    <input data-key="${p.keyField}" type="password" placeholder="${escA(p.keyHint)}" autocomplete="off" aria-label="${escA(p.label)} API key">
+    <small class="key-hint"></small>
+  </div>`).join('');
+
+function syncProviderUI() {
+  const id = settings.provider, p = providerOf(settings);
+  const model = $('#model-input');
+  model.dataset.key = p.modelField;
+  model.value = settings[p.modelField] || '';
+  $('#btn-load-models').dataset.load = id;
+  $('#models-list').innerHTML = '';
+  $('#model-note').textContent = `${p.label} · blank = Jarvis picks a fast one`;
+  for (const chip of form.querySelectorAll('#provider-chips .chip')) {
+    chip.classList.toggle('has-key', hasCredentials(settings, chip.dataset.provider));
+  }
+  for (const row of form.querySelectorAll('.key-row')) {
+    const rp = PROVIDERS[row.dataset.provider];
+    const v = cleanKey(settings[rp.keyField]);
+    const hint = row.querySelector('.key-hint');
+    const looksWrong = v && rp.keyPattern && !rp.keyPattern.test(v);
+    hint.textContent = !v ? '' : `Saved ${v.slice(0, 5)}…${v.slice(-4)} · ${v.length} characters${looksWrong ? ` · ${rp.label} keys usually start with ${rp.keyHint.replace('…', '')}` : ''}`;
+    hint.classList.toggle('warn', !!looksWrong);
+    row.classList.toggle('current', row.dataset.provider === id);
+  }
 }
 
 form.addEventListener('input', (e) => {
@@ -529,9 +568,11 @@ form.addEventListener('input', (e) => {
   const key = el.dataset.key;
   const prevProvider = settings.provider;
   settings[key] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? Number(el.value) : el.value.trim();
+  if (/Key$/.test(key)) settings[key] = cleanKey(settings[key]);
   if (key === 'provider' && settings.provider !== prevProvider) { history = []; store.set('history', []); }
   saveSettings();
   if (key === 'provider') syncForm();
+  else if (/Key$|Url$/.test(key)) syncProviderUI();
   updateModelLabel();
   if (key === 'wakeWord') setState(state);
   if (key === 'buddySound') buddy.setSound(settings.buddySound);
@@ -574,6 +615,12 @@ function openSettings(tab) {
 }
 
 
+// Show the cleaned-up key once the field is left.
+form.addEventListener('change', (e) => {
+  const el = e.target.closest('[data-key$="Key"]');
+  if (el) el.value = settings[el.dataset.key] || '';
+});
+
 // ---- Android-only controls
 if (NATIVE) {
   $('#btn-perms').addEventListener('click', () => NATIVE.requestPermissions());
@@ -596,29 +643,32 @@ form.addEventListener('click', async (e) => {
   load.textContent = '…';
   try {
     const ids = await listModels({ ...settings, provider: prov }, prov);
-    $(`#models-${prov}`).innerHTML = ids.map(id => `<option value="${esc(id)}">`).join('');
-    const key = { gemini: 'geminiModel', grok: 'grokModel', openjarvis: 'ojModel' }[prov];
+    $('#models-list').innerHTML = ids.map(id => `<option value="${esc(id)}">`).join('');
+    const key = PROVIDERS[prov].modelField;
     if (!ids.includes(settings[key])) {
-      settings[key] = prov === 'openjarvis' ? ids[0] || '' : pickModel(prov, ids) || settings[key];
+      settings[key] = prov === 'openjarvis' || prov === 'custom' ? ids[0] || '' : pickModel(prov, ids) || settings[key];
       saveSettings(); syncForm(); updateModelLabel();
     }
     load.textContent = `${ids.length} ✓`;
   } catch (err) {
     load.textContent = 'Load';
-    alert(err.message);
+    alert(`${explainError(err)}\n\nDetails: ${err.message}`);
   }
 });
 
 $('#btn-test').addEventListener('click', async (e) => {
   const b = e.currentTarget;
   b.textContent = 'Testing…';
+  const t0 = performance.now();
   try {
-    const res = await chat(settings, { system: 'Reply with exactly: Online and ready.', messages: [{ role: 'user', content: 'Status check' }], tools: [] },
-      () => { saveSettings(); syncForm(); updateModelLabel(); });
-    b.textContent = `✓ ${res.text.slice(0, 40) || 'Connected'}`;
+    // Test only the chosen provider (no fallback), so a bad key isn't hidden by another provider.
+    await chat({ ...settings, fallbackProviders: false },
+      { system: 'Reply with exactly: Online and ready.', messages: [{ role: 'user', content: 'Status check' }], tools: [] },
+      (key, value) => { settings[key] = value; saveSettings(); syncForm(); updateModelLabel(); });
+    b.textContent = `✓ ${((performance.now() - t0) / 1000).toFixed(1)} s · ${modelOf(settings) || 'connected'}`;
   } catch (err) {
     b.textContent = 'Test connection';
-    alert(err.message);
+    alert(`${explainError(err)}\n\nDetails: ${err.message}`);
   }
 });
 
@@ -677,10 +727,8 @@ async function boot() {
   updateModelLabel();
   setState('idle');
   await detectServer();
-  const needsKey = settings.provider === 'gemini' ? !settings.geminiKey && !settings._server?.gemini
-    : settings.provider === 'grok' ? !settings.xaiKey && !settings._server?.xai : false;
-  if (needsKey) {
-    addMsg('assistant', 'Welcome! Open Settings (top right) and add your Gemini or Grok API key to bring me online.');
+  if (!hasCredentials(settings, settings.provider)) {
+    addMsg('assistant', 'Welcome! Open Settings → Brain and add an API key (Gemini, Groq and Mistral have free tiers) to bring me online.');
   }
   if (!SR) addMsg('error', 'This browser has no speech recognition. Use Chrome on Android for voice; typing still works.');
   if (NATIVE && !IS_BUBBLE && nativeSync('bubbleState')?.running) wakeBtn.setAttribute('aria-pressed', String(!!store.get('wake', false)));

@@ -133,38 +133,26 @@
 
         <!-- ============================================================ Brain -->
         <section class="tab-panel" data-panel="brain" hidden>
-          <article class="s-card">
+          <article class="s-card wide">
             <header class="s-head"><h3>AI provider</h3><button type="button" class="info" aria-label="More info">i</button></header>
             <div class="s-body">
-              <p class="s-more" hidden>Gemini has a free tier and is the fastest choice. Grok needs a paid xAI key. OpenJarvis runs a model on your own computer.</p>
-              <div class="chips">
-                <label class="chip"><input type="radio" name="provider" data-key="provider" value="gemini"><span>Gemini</span></label>
-                <label class="chip"><input type="radio" name="provider" data-key="provider" value="grok"><span>Grok</span></label>
-                <label class="chip"><input type="radio" name="provider" data-key="provider" value="openjarvis"><span>OpenJarvis</span></label>
-              </div>
-
-              <div data-show="gemini" class="stack">
-                <label>Gemini API key <small>aistudio.google.com/apikey</small>
-                  <input data-key="geminiKey" type="password" placeholder="AIza…" autocomplete="off">
-                </label>
-                <label>Model
-                  <span class="row"><input data-key="geminiModel" list="models-gemini" placeholder="gemini-2.5-flash"><button type="button" class="btn small" data-load="gemini">Load</button></span>
-                  <datalist id="models-gemini"></datalist>
-                </label>
-              </div>
-
-              <div data-show="grok" class="stack">
-                <label>Grok (xAI) API key <small>console.x.ai</small>
-                  <input data-key="xaiKey" type="password" placeholder="xai-…" autocomplete="off">
-                </label>
-                <label>Model <small>pick a “fast non-reasoning” one for quick replies</small>
-                  <span class="row"><input data-key="grokModel" list="models-grok" placeholder="grok-4-fast-non-reasoning"><button type="button" class="btn small" data-load="grok">Load</button></span>
-                  <datalist id="models-grok"></datalist>
-                </label>
-              </div>
-
-
+              <p class="s-more" hidden>Pick which AI answers you. A green dot means you've added a key for it. Gemini, Groq and Mistral have free tiers; Groq is the fastest. Leave the model blank and Jarvis picks a quick one.</p>
+              <div class="chips" id="provider-chips" role="radiogroup" aria-label="AI provider"></div>
+              <label>Model <small id="model-note"></small>
+                <span class="row"><input id="model-input" list="models-list" placeholder="automatic" autocomplete="off"><button type="button" class="btn small" id="btn-load-models" data-load="">Load</button></span>
+                <datalist id="models-list"></datalist>
+              </label>
+              <label class="switch"><input data-key="fallbackProviders" type="checkbox"><i></i>
+                <span><b>Use another provider if this one fails</b><small>tries the other providers you've added keys for</small></span></label>
               <button type="button" id="btn-test" class="btn primary">Test connection</button>
+            </div>
+          </article>
+
+          <article class="s-card wide">
+            <header class="s-head"><h3>API keys</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Add as many as you like. Keys are stored only on this phone and sent only to that provider. Tap “Get key” to open the provider's key page, copy the key, and paste it here.</p>
+              <div class="key-list" id="key-list"></div>
             </div>
           </article>
 
@@ -192,17 +180,13 @@
           <article class="s-card">
             <header class="s-head"><h3>OpenJarvis on your computer</h3><button type="button" class="info" aria-label="More info">i</button></header>
             <div class="s-body">
-              <p class="s-more" hidden>Optional. Fill this in to use OpenJarvis as the provider, or to let Jarvis hand bigger tasks to your computer while it uses Gemini or Grok.</p>
-              <div data-show="openjarvis-any" class="stack">
+              <p class="s-more" hidden>Optional. Fill this in to use OpenJarvis as the provider, or to let Jarvis hand bigger tasks to your computer while it uses another AI.</p>
+              <div class="stack">
                 <label>OpenJarvis URL <small>optional if the Jarvis server has OPENJARVIS_URL</small>
                   <input data-key="ojUrl" type="url" placeholder="https://my-pc.tailnet.ts.net:8000" autocomplete="off">
                 </label>
                 <label>OpenJarvis API key <small>optional</small>
                   <input data-key="ojKey" type="password" autocomplete="off">
-                </label>
-                <label>OpenJarvis model <small>blank = first available</small>
-                  <span class="row"><input data-key="ojModel" list="models-openjarvis"><button type="button" class="btn small" data-load="openjarvis">Load</button></span>
-                  <datalist id="models-openjarvis"></datalist>
                 </label>
               </div>
             </div>
