@@ -34,6 +34,9 @@ It thinks with **Gemini**, **Grok** or your own **OpenJarvis**.
 | | |
 |---|---|
 | 🫧 **Floating bubble** | A small circle that stays on screen over every app (Android), like a chat head. Drag it anywhere and it snaps to the edge. Drop it on the ✕ to close it |
+| ⚡ **Instant commands** | Common phrases ("open YouTube", "call Mom", "set an alarm for 6:30", "volume up", "flashlight on") run on the phone without the AI; only what it can't understand goes to the AI |
+| 🗣️ **Your own commands** | Teach a phrase ("good night") and the steps to run, in plain words (Settings → Commands) |
+| 📱 **Screen control** | Voice-Access style: "go back", "scroll down", "tap Send", "type …", "read the screen"; the AI can read the screen to answer questions about it |
 | 🤖 **A living companion** | An animated Jarvis robot. It blinks, its eyes follow your finger, it yawns and naps, and it reacts when you pet, poke, tickle or fling it |
 | 🎙️ **Touch or call** | Tap it to talk, or turn on the wake word and just say **“Jarvis, …”** |
 | 🌙 **Runs in the background** | Foreground service with a mic, so it keeps listening while you use other apps. Optional start on boot |

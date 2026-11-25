@@ -82,6 +82,7 @@
         <button type="button" role="tab" data-tab="general" data-sub="you, your phone and your preferences">General</button>
         <button type="button" role="tab" data-tab="brain" data-sub="the AI that answers you">Brain</button>
         <button type="button" role="tab" data-tab="voice" data-sub="listening, speaking and the robot">Voice</button>
+        <button type="button" role="tab" data-tab="commands" data-sub="instant commands, your shortcuts and screen control">Commands</button>
         <button type="button" role="tab" data-tab="phone" class="android-only" data-sub="floating bubble and permissions">Phone</button>
         <button type="button" role="tab" data-tab="about" data-sub="version and updates">About<i class="tab-dot" id="about-dot" hidden></i></button>
       </nav>
@@ -233,6 +234,46 @@
             <div class="s-body">
               <label class="switch"><input data-key="buddySound" type="checkbox"><i></i>
                 <span><b>Robot beeps</b><small>little sounds when you poke, pet or talk to it</small></span></label>
+            </div>
+          </article>
+        </section>
+
+        <!-- ============================================================ Commands -->
+        <section class="tab-panel" data-panel="commands" hidden>
+          <article class="s-card wide">
+            <header class="s-head"><h3>Your commands</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Teach Jarvis a phrase and what to do. Write each step on its own line in plain words, the way you'd say it: “turn off the flashlight”, “set an alarm for 6:30 am”, “open Spotify”. Use “say …” to make Jarvis speak and “wait 2 seconds” to pause. A step Jarvis can't do by itself is sent to the AI.</p>
+              <div id="custom-list" class="custom-list"></div>
+              <button type="button" id="btn-add-cmd" class="btn primary">Add command</button>
+              <span class="field-label">Or start from an example</span>
+              <div class="chips" id="cmd-templates"></div>
+            </div>
+          </article>
+
+          <article class="s-card wide">
+            <header class="s-head"><h3>Instant commands</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>These run on your phone in a split second without the AI, so they're fast, work when the AI is busy, and don't use your AI quota. Anything else — questions, messages, several steps at once — goes to the AI.</p>
+              <label class="switch"><input data-key="localCommands" type="checkbox"><i></i>
+                <span><b>Handle common commands instantly</b><small>open apps, calls, alarms, timers, music, volume, flashlight…</small></span></label>
+              <div id="builtin-list" class="cmd-groups"></div>
+            </div>
+          </article>
+
+          <article class="s-card wide android-only">
+            <header class="s-head"><h3>Screen control</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Like Android's Voice Access: Jarvis can go back, go home, scroll, tap buttons by their name, type into text boxes and read the screen aloud. The AI can also read the screen when you ask about it (“what does this message say?”). Jarvis only reads the screen when you ask.</p>
+              <div class="update-status" id="screen-status" data-tone="idle">
+                <span class="upd-dot"></span>
+                <span><b id="screen-title">Off</b><small id="screen-detail">turn it on to control apps by voice</small></span>
+              </div>
+              <ol class="steps">
+                <li><button type="button" id="btn-screen-on" class="btn">Turn on “Jarvis screen control”</button></li>
+              </ol>
+              <p class="hint">Android 13 and newer: if it says <b>Restricted setting</b>, tap <b>Open app info</b>, then <b>⋮</b> (top right) → <b>Allow restricted settings</b>, and turn it on again.</p>
+              <button type="button" id="btn-app-info" class="btn">Open app info</button>
             </div>
           </article>
         </section>

@@ -3,6 +3,7 @@ import { toolsFor, runTool, initScheduler, activeTimers, store } from './tools.j
 import { createBuddy } from './buddy.js';
 import { NATIVE, IS_BUBBLE, NativeSpeechRecognition, nativeSpeak, nativeStopSpeaking, nativeSync } from './native.js';
 import { initUpdates, refreshAbout } from './update.js';
+import { runLocal, BUILTINS, TEMPLATES } from './commands.js';
 
 if (IS_BUBBLE) document.documentElement.classList.add('bubble-mode');
 if (NATIVE) document.documentElement.classList.add('in-app');
@@ -20,6 +21,7 @@ const DEFAULTS = {
   customUrl: '', customKey: '', customModel: '',
   ojUrl: '', ojKey: '', ojModel: '',
   fallbackProviders: true,
+  localCommands: true, customCommands: [],
   serverToken: '',
   wakeWord: 'jarvis',
   lang: navigator.language || 'en-US',
@@ -374,6 +376,7 @@ function systemPrompt() {
     'For times, interpret relative phrases ("in 10 minutes", "tomorrow at 9") using the current local time below and pass ISO local times.',
     'When you need live facts (news, scores, prices) and have no tool for it, give your best knowledge and offer to search.',
     'Use the remember tool when the user tells you a lasting personal fact or preference.',
+    NATIVE ? 'You can see and control the phone screen: use read_screen when the user asks about what is on their screen (read, summarise, explain, reply to a message), and screen_action to go back, scroll, tap a button by its label or type text.' : '',
     `Current local time: ${now.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`,
     memory.length ? `What you remember about the user:\n- ${memory.join('\n- ')}` : '',
   ].filter(Boolean).join('\n');
@@ -391,34 +394,19 @@ function updateModelLabel() {
   $('#model-label').textContent = `${providerOf(settings).label} · ${modelOf(settings) || 'automatic'}`;
 }
 
-async function handleCommand(text) {
-  text = text.trim();
-  if (!text) return;
-  live.textContent = '';
-  addMsg('user', text);
-
-  // Instant local commands (no AI round-trip)
-  if (/^(stop|cancel|never ?mind|shut up|quiet)\.?$/i.test(text)) {
-    stopSpeaking(); buddy.say(''); setState('idle'); resumeWake(); return;
-  }
-
+// The AI agent loop: asks the model, runs the tools it picks, repeats until it answers. Returns the reply.
+async function askAI(text, signal) {
   const startLen = history.length;
   history.push({ role: 'user', content: text });
-  setState('thinking');
-  abort = new AbortController();
-  const ctx = {
-    settings, ui, signal: abort.signal,
-    alert: fireAlert,
-  };
-  let reply = '';
+  const ctx = { settings, ui, signal, alert: fireAlert };
   try {
     for (let step = 0; step < 6; step++) {
       const res = await chat(settings, {
-        system: systemPrompt(), messages: history, tools: toolsFor(settings), signal: abort.signal,
+        system: systemPrompt(), messages: history, tools: toolsFor(settings), signal,
       }, (key, model) => { saveSettings(); updateModelLabel(); syncForm(); addTool('switched model', { model }); },
       (id) => addTool('answered by', { provider: PROVIDERS[id].label }));
       history.push({ role: 'assistant', content: res.text, toolCalls: res.toolCalls, geminiParts: res.geminiParts });
-      if (!res.toolCalls.length) { reply = res.text; break; }
+      if (!res.toolCalls.length) return res.text || 'Done.';
       if (res.text) addMsg('assistant', res.text);
       for (const tc of res.toolCalls) {
         addTool(tc.name, tc.args);
@@ -426,26 +414,63 @@ async function handleCommand(text) {
         history.push({ role: 'tool', toolCallId: tc.id, name: tc.name, content: out });
       }
     }
-    if (!reply) reply = 'Done.';
+    return 'Done.';
   } catch (e) {
-    if (e.name === 'AbortError') { history.length = startLen; setState('idle'); trimHistory(); resumeWake(); return; }
     history.length = startLen; // drop the failed turn so the conversation stays valid
+    throw e;
+  } finally {
+    trimHistory();
+  }
+}
+
+async function finishReply(reply) {
+  addMsg('assistant', reply);
+  await speak(reply);
+  if (state === 'speaking' || state === 'thinking') setState('idle');
+  if (settings.followUp && /\?\s*$/.test(reply) && state === 'idle') { chime(660); startRec('command'); return; }
+  resumeWake();
+}
+
+async function handleCommand(text) {
+  text = text.trim();
+  if (!text) return;
+  live.textContent = '';
+  addMsg('user', text);
+
+  if (/^(stop|cancel|never ?mind|shut up|quiet)\.?$/i.test(text)) {
+    stopSpeaking(); buddy.say(''); setState('idle'); resumeWake(); return;
+  }
+
+  setState('thinking');
+  abort = new AbortController();
+  const signal = abort.signal;
+  try {
+    // 1. Your saved commands and the built-in phone commands: instant, no AI.
+    const local = await runLocal(text, {
+      settings, ui, signal, alert: fireAlert,
+      ai: (line) => askAI(line, signal), // a saved command's step that only the AI understands
+    });
+    if (local) {
+      history.push({ role: 'user', content: text });
+      if (local.say) history.push({ role: 'assistant', content: local.say });
+      trimHistory();
+      addTool('instant', { command: local.label });
+      if (local.say) return await finishReply(local.say);
+      chime(880); // done quietly (e.g. "go back", "volume up")
+      setState('idle'); resumeWake();
+      return;
+    }
+    // 2. Everything else: the AI.
+    await finishReply(await askAI(text, signal));
+  } catch (e) {
+    if (e.name === 'AbortError') { setState('idle'); resumeWake(); return; }
     addMsg('error', e.message || String(e));
     buddy.react('sad');
-    reply = explainError(e);
-    trimHistory();
-    await speak(reply);
+    await speak(explainError(e));
     setState('idle'); resumeWake();
-    return;
   } finally {
     abort = null;
   }
-  trimHistory();
-  addMsg('assistant', reply);
-  await speak(reply);
-  if (state === 'speaking') setState('idle');
-  if (settings.followUp && /\?\s*$/.test(reply) && state === 'idle') { chime(660); startRec('command'); return; }
-  resumeWake();
 }
 
 // ------------------------------------------------------------------ alerts, timers
@@ -591,8 +616,10 @@ function showTab(name) {
   }
   for (const p of form.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== tab.dataset.tab;
   $('#settings-sub').textContent = tab.dataset.sub;
+  tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   form.querySelector('.settings-body').scrollTop = 0;
   if (tab.dataset.tab === 'about') refreshAbout();
+  if (tab.dataset.tab === 'commands') { renderCustom(); refreshScreenState(); }
   try { localStorage.setItem('jarvis.settingsTab', tab.dataset.tab); } catch { }
 }
 form.querySelector('.tabs').addEventListener('click', (e) => {
@@ -614,6 +641,88 @@ function openSettings(tab) {
   dialog.showModal();
 }
 
+
+// ---- Commands tab: built-in examples, your saved commands, screen control
+{
+  const groups = {};
+  for (const b of BUILTINS) {
+    if (b.native && !NATIVE) continue;
+    for (const ex of b.examples || []) (groups[b.group] ||= []).push(ex);
+  }
+  $('#builtin-list').innerHTML = Object.entries(groups).map(([g, list]) =>
+    `<div class="cmd-group"><b>${escA(g)}</b><div>${list.map(x => `<span class="ex">“${escA(x)}”</span>`).join('')}</div></div>`).join('');
+  $('#cmd-templates').innerHTML = TEMPLATES.map((t, i) =>
+    `<button type="button" class="chip-btn" data-template="${i}">+ ${escA(cap1(t.phrases.split(',')[0]))}</button>`).join('');
+}
+function cap1(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+
+function renderCustom(focusLast) {
+  const list = $('#custom-list');
+  const cmds = settings.customCommands || [];
+  list.innerHTML = cmds.length ? cmds.map((c, i) => `
+    <div class="cmd-row" data-i="${i}">
+      <label>When I say <small>separate options with commas</small>
+        <input data-f="phrases" value="${escA(c.phrases || '')}" placeholder="good night, going to sleep" autocomplete="off"></label>
+      <label>Do this <small>one step per line</small>
+        <textarea data-f="actions" rows="3" placeholder="turn off the flashlight&#10;set an alarm for 6:30 am">${escA(c.actions || '')}</textarea></label>
+      <label>Then say <small>optional</small>
+        <input data-f="reply" value="${escA(c.reply || '')}" placeholder="Good night!" autocomplete="off"></label>
+      <div class="row"><button type="button" class="btn small" data-act="try">Try it</button><button type="button" class="btn small danger" data-act="delete">Delete</button></div>
+    </div>`).join('') : '<p class="hint">No commands yet. Add one, or start from an example below.</p>';
+  if (focusLast) list.querySelector('.cmd-row:last-child [data-f="phrases"]')?.focus();
+}
+const customList = $('#custom-list');
+customList.addEventListener('input', (e) => {
+  const f = e.target.dataset.f, row = e.target.closest('.cmd-row');
+  if (!f || !row) return;
+  settings.customCommands[row.dataset.i][f] = e.target.value;
+  saveSettings();
+});
+customList.addEventListener('click', (e) => {
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  const i = +e.target.closest('.cmd-row')?.dataset.i;
+  if (!act) return;
+  const cmd = settings.customCommands[i];
+  if (act === 'delete') {
+    if (!confirm(`Delete “${cmd.phrases || 'this command'}”?`)) return;
+    settings.customCommands.splice(i, 1);
+    saveSettings(); renderCustom();
+  } else if (act === 'try') {
+    const phrase = String(cmd.phrases || '').split(',')[0].trim();
+    if (!phrase) return alert('Type what you will say first.');
+    dialog.close();
+    handleCommand(phrase);
+  }
+});
+$('#btn-add-cmd').addEventListener('click', () => {
+  settings.customCommands = [...(settings.customCommands || []), { phrases: '', actions: '', reply: '' }];
+  saveSettings(); renderCustom(true);
+});
+$('#cmd-templates').addEventListener('click', (e) => {
+  const t = TEMPLATES[e.target.closest('[data-template]')?.dataset.template];
+  if (!t) return;
+  settings.customCommands = [...(settings.customCommands || []), { ...t }];
+  saveSettings(); renderCustom(true);
+});
+
+function refreshScreenState() {
+  if (!NATIVE) return;
+  const st = nativeSync('screenState') || {};
+  const box = $('#screen-status');
+  const [tone, title, detail, btn] = st.enabled && st.connected
+    ? ['ok', 'On', 'try “go back”, “scroll down” or “tap Send”', 'Accessibility settings']
+    : st.enabled ? ['busy', 'Starting…', 'Android is connecting Jarvis; this takes a moment', 'Accessibility settings']
+      : ['idle', 'Off', 'turn it on to control apps by voice', 'Turn on “Jarvis screen control”'];
+  box.dataset.tone = tone;
+  $('#screen-title').textContent = title;
+  $('#screen-detail').textContent = detail;
+  $('#btn-screen-on').textContent = btn;
+}
+if (NATIVE) {
+  $('#btn-screen-on').addEventListener('click', () => NATIVE.openScreenSetup('accessibility'));
+  $('#btn-app-info').addEventListener('click', () => NATIVE.openScreenSetup('app_info'));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && dialog.open) refreshScreenState(); });
+}
 
 // Show the cleaned-up key once the field is left.
 form.addEventListener('change', (e) => {

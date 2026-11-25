@@ -273,6 +273,18 @@ label.switch small { color: var(--muted); font-size: 13px; font-weight: 400; }
 .key-hint:empty { display: none; }
 .key-hint.warn { color: var(--warm); }
 
+/* commands tab */
+.in-app .s-card.android-only { display: block; }
+.cmd-groups { display: flex; flex-direction: column; gap: 12px; }
+.cmd-group b { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.cmd-group div { display: flex; flex-wrap: wrap; gap: 6px; }
+.ex { padding: 5px 10px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--line); font-size: 13px; }
+.custom-list { display: flex; flex-direction: column; gap: 12px; }
+.cmd-row { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-2); }
+.cmd-row input, .cmd-row textarea { background: var(--panel); }
+.cmd-row .row .btn { flex: 0 0 auto; }
+button.chip-btn { padding: 7px 14px; border-radius: 99px; border: 1px dashed rgba(53, 208, 255, .5); background: none; color: var(--accent); font-size: 14px; font-weight: 600; }
+
 /* buttons */
 .btn {
   padding: 11px 16px; border-radius: 11px; border: 1px solid var(--line);

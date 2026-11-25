@@ -407,6 +407,29 @@ class JarvisBridge(
 
     @JavascriptInterface fun setStartOnBoot(on: String) { Prefs.setStartOnBoot(ctx, on == "true") }
 
+    // ================================================================== screen control (accessibility)
+
+    @JavascriptInterface
+    fun screenState(): String = JSONObject()
+        .put("enabled", ScreenService.isEnabled(ctx))
+        .put("connected", ScreenService.instance != null)
+        .toString()
+
+    @JavascriptInterface fun screenGlobal(action: String): String = ScreenService.global(action)
+    @JavascriptInterface fun screenRead(maxChars: String): String = ScreenService.read(maxChars.toIntOrNull() ?: 4000)
+    @JavascriptInterface fun screenTap(target: String): String = ScreenService.tap(target)
+    @JavascriptInterface fun screenScroll(direction: String): String = ScreenService.scroll(direction)
+    @JavascriptInterface fun screenType(text: String): String = ScreenService.type(text)
+
+    /** Accessibility settings, or this app's info page (for Android 13+ "Allow restricted settings"). */
+    @JavascriptInterface
+    fun openScreenSetup(page: String) {
+        val intent = if (page == "app_info")
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${ctx.packageName}"))
+        else Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        start(intent)
+    }
+
     // ================================================================== app updates
 
     @JavascriptInterface fun appInfo(): String = Updater.info(ctx).toString()

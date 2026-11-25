@@ -219,7 +219,7 @@ export const TOOLS = [
         if (r?.ok) return r;
       }
       const url = APPS[key] || APPS[key.replace(/^google /, '')] ||
-        Object.entries(APPS).find(([k]) => key.includes(k))?.[1];
+        Object.entries(APPS).find(([k]) => new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(key))?.[1];
       if (!url) return { error: `I don't have a shortcut for "${app_name}". Try open_website with its site.` };
       return { opened: launch(ctx, url, `Open ${app_name}`) };
     },
@@ -573,6 +573,23 @@ export const TOOLS = [
     run: ({ video }) => nativeSync('camera', String(!!video)) || { error: 'No camera app' },
   },
   {
+    name: 'read_screen',
+    description: 'Read the text currently shown on the phone screen (the app under Jarvis). Use when the user asks you to read, summarise, explain or answer something about what is on their screen, e.g. a message, article or page.',
+    parameters: obj({}),
+    available: nativeOnly,
+    run: () => nativeSync('screenRead', '6000') || { error: 'Screen reading is not available' },
+  },
+  {
+    name: 'screen_action',
+    description: 'Control the phone screen like Voice Access: go back, go home, recent apps, open notifications or quick settings, lock, screenshot, scroll, tap a button/link by its visible label, or type into the text box.',
+    parameters: obj({
+      action: S('What to do', { enum: ['back', 'home', 'recents', 'notifications', 'quick_settings', 'lock', 'screenshot', 'scroll_up', 'scroll_down', 'scroll_left', 'scroll_right', 'tap', 'type'] }),
+      text: S('For tap: the visible label to tap. For type: the text to type.'),
+    }, ['action']),
+    available: nativeOnly,
+    run: ({ action, text = '' }) => screenAction(action, text),
+  },
+  {
     name: 'ask_openjarvis',
     description: "Send a task to the OpenJarvis agent running on the user's computer (it has its own tools: files, code, web research, scheduled agents, messaging). Use for heavy or computer-side tasks.",
     parameters: obj({ task: S('Full description of the task') }, ['task']),
@@ -580,6 +597,14 @@ export const TOOLS = [
     run: async ({ task }, ctx) => ({ result: await askOpenJarvis(ctx.settings, task, ctx.signal) }),
   },
 ];
+
+export function screenAction(action, text = '') {
+  if (!NATIVE) return { error: 'Screen control needs the Android app' };
+  if (action === 'tap') return nativeSync('screenTap', text) || { error: 'Failed' };
+  if (action === 'type') return nativeSync('screenType', text) || { error: 'Failed' };
+  if (action.startsWith('scroll_')) return nativeSync('screenScroll', action.slice(7)) || { error: 'Failed' };
+  return nativeSync('screenGlobal', action) || { error: 'Failed' };
+}
 
 export function toolsFor(settings) {
   return TOOLS.filter(t => !t.available || t.available(settings));
