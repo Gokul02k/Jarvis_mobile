@@ -69,13 +69,13 @@
   <dialog id="settings">
     <form method="dialog" class="settings-form" id="settings-form">
       <header class="settings-head">
-        <div>
+        <button type="submit" value="close" class="icon-btn back-btn" aria-label="Back to Jarvis">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <div class="settings-title">
           <h2>Settings</h2>
           <p class="settings-sub" id="settings-sub">you, your phone and your preferences</p>
         </div>
-        <button type="submit" value="close" class="icon-btn" aria-label="Close">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
-        </button>
       </header>
 
       <nav class="tabs" role="tablist" aria-label="Settings sections">

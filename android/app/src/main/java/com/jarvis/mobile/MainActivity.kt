@@ -59,7 +59,12 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (web.canGoBack()) web.goBack() else moveTaskToBack(true)
+        // Let the page close Settings / the keyboard bar first; only then leave the app.
+        if (!ready) { moveTaskToBack(true); return }
+        web.evaluateJavascript("window.__jarvisBack ? window.__jarvisBack() : false") { handled ->
+            if (handled == "true") return@evaluateJavascript
+            if (web.canGoBack()) web.goBack() else moveTaskToBack(true)
+        }
     }
 
     override fun onDestroy() {

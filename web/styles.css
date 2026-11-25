@@ -161,11 +161,20 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); backdrop-filter: blur(4px); }
     var(--bg-2);
 }
 .settings-head {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  display: flex; align-items: center; justify-content: flex-start; gap: 12px;
   padding: calc(14px + var(--safe-t)) 16px 12px;
 }
 .settings-head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
 .settings-sub { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.settings-title { min-width: 0; }
+.back-btn { flex-shrink: 0; color: var(--text); }
+
+/* swipe between tabs */
+.tab-panel.slide-next { animation: slide-next .22s ease-out; }
+.tab-panel.slide-prev { animation: slide-prev .22s ease-out; }
+@keyframes slide-next { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes slide-prev { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tab-panel.slide-next, .tab-panel.slide-prev { animation: none; } }
 
 .tabs {
   display: flex; gap: 4px; margin: 0 16px 4px; padding: 4px; width: max-content; max-width: calc(100% - 32px);

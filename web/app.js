@@ -607,14 +607,18 @@ form.addEventListener('input', (e) => {
 
 // ---- tabs and the (i) explanations
 const tabs = [...form.querySelectorAll('[data-tab]')];
-function showTab(name) {
+function showTab(name, dir) {
   const tab = tabs.find(t => t.dataset.tab === name && getComputedStyle(t).display !== 'none') || tabs[0];
   for (const t of tabs) {
     const on = t === tab;
     t.setAttribute('aria-selected', String(on));
     t.tabIndex = on ? 0 : -1;
   }
-  for (const p of form.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== tab.dataset.tab;
+  for (const p of form.querySelectorAll('[data-panel]')) {
+    p.hidden = p.dataset.panel !== tab.dataset.tab;
+    p.classList.remove('slide-next', 'slide-prev');
+    if (!p.hidden && dir) { void p.offsetWidth; p.classList.add(dir > 0 ? 'slide-next' : 'slide-prev'); }
+  }
   $('#settings-sub').textContent = tab.dataset.sub;
   tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   form.querySelector('.settings-body').scrollTop = 0;
@@ -622,9 +626,46 @@ function showTab(name) {
   if (tab.dataset.tab === 'commands') { renderCustom(); refreshScreenState(); }
   try { localStorage.setItem('jarvis.settingsTab', tab.dataset.tab); } catch { }
 }
+// Swipe left / right inside Settings to move between tabs.
+const visibleTabs = () => tabs.filter(t => getComputedStyle(t).display !== 'none');
+function stepTab(dir) {
+  const list = visibleTabs();
+  const i = list.findIndex(t => t.getAttribute('aria-selected') === 'true');
+  const next = list[i + dir];
+  if (next) showTab(next.dataset.tab, dir);
+}
+{
+  const body = form.querySelector('.settings-body');
+  let start = null;
+  body.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    // Leave sliders, text boxes and sideways-scrolling bits alone.
+    start = e.touches.length === 1 && !e.target.closest('input, textarea, select, .tabs, .chips')
+      ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
+  }, { passive: true });
+  body.addEventListener('touchend', (e) => {
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x, dy = t.clientY - start.y;
+    const quick = Date.now() - start.at < 700;
+    start = null;
+    if (quick && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6) stepTab(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  body.addEventListener('touchcancel', () => { start = null; }, { passive: true });
+}
+
+// Android back button / gesture: close Settings (or the keyboard bar) instead of leaving the app.
+window.__jarvisBack = () => {
+  if (dialog.open) { dialog.close(); return true; }
+  if (!textForm.hidden) { textForm.hidden = true; textInput.blur(); return true; }
+  return false;
+};
+
 form.querySelector('.tabs').addEventListener('click', (e) => {
   const t = e.target.closest('[data-tab]');
-  if (t) showTab(t.dataset.tab);
+  if (!t) return;
+  const list = visibleTabs(), from = list.findIndex(x => x.getAttribute('aria-selected') === 'true');
+  showTab(t.dataset.tab, Math.sign(list.indexOf(t) - from));
 });
 form.addEventListener('click', (e) => {
   const info = e.target.closest('.info');
