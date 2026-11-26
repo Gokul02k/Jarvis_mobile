@@ -57,6 +57,32 @@ export async function nativeFetch(url, { method = 'GET', headers = {}, body = ''
   };
 }
 
+/** Streaming request in the app: onLine(line) for each line as it arrives. Resolves { status, text } at the end. */
+const streams = new Map();
+window.__jarvisStreamLine = (id, line) => streams.get(id)?.line(line);
+window.__jarvisStreamEnd = (id, status, text) => {
+  const s = streams.get(id);
+  if (!s) return;
+  streams.delete(id);
+  s.end(status, text);
+};
+export function nativeStream(url, { method = 'POST', headers = {}, body = '', signal } = {}, onLine) {
+  const id = `s${++seq}`;
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
+    streams.set(id, {
+      line: onLine,
+      end: (status, text) => (status < 0 ? reject(new TypeError(text || 'Network error')) : resolve({ status, text })),
+    });
+    signal?.addEventListener('abort', () => {
+      streams.delete(id);
+      NATIVE.httpAbort?.(id);
+      reject(new DOMException('Aborted', 'AbortError'));
+    }, { once: true });
+    NATIVE.httpStream(id, url, method, JSON.stringify(headers), body || '');
+  });
+}
+
 // ------------------------------------------------------------ speech recognition shim
 // Mimics the Web Speech API (webkitSpeechRecognition) on top of Android's SpeechRecognizer.
 

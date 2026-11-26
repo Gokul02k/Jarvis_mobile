@@ -5,7 +5,7 @@
 //   { role: 'assistant', content, toolCalls: [{ id, name, args }], geminiParts? }
 //   { role: 'tool', toolCallId, name, content }
 
-import { NATIVE, nativeFetch } from './native.js';
+import { NATIVE, nativeFetch, nativeStream } from './native.js';
 
 // ------------------------------------------------------------------ providers
 // kind: 'gemini' | 'anthropic' | 'openai' (OpenAI-compatible chat completions).
@@ -130,24 +130,101 @@ function addAuth(h, p, key) {
   if (p === PROVIDERS.openrouter) h['X-Title'] = 'Jarvis';
 }
 
+function networkError(url) {
+  return new Error(`Network error reaching ${new URL(url).host}. ${location.protocol === 'https:' && url.startsWith('http:') ? 'An HTTPS page cannot call an HTTP address; route it through the Jarvis server.' : 'Check your connection, or use the Jarvis server as a proxy.'}`);
+}
+
+function httpError(status, text, statusText = '') {
+  let data;
+  try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  if (Array.isArray(data)) data = data[0] || {};
+  const msg = data?.error?.message || data?.error || data?.message || data?.detail || data?.raw || statusText;
+  const err = new Error(`${status}: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`.slice(0, 400));
+  err.status = status;
+  return err;
+}
+
 async function request(url, opts) {
   let res;
   try {
     res = await (NATIVE ? nativeFetch(url, opts) : fetch(url, opts));
   } catch (e) {
     if (e.name === 'AbortError') throw e;
-    throw new Error(`Network error reaching ${new URL(url).host}. ${location.protocol === 'https:' && url.startsWith('http:') ? 'An HTTPS page cannot call an HTTP address; route it through the Jarvis server.' : 'Check your connection, or use the Jarvis server as a proxy.'}`);
+    throw networkError(url);
   }
   const text = await res.text();
-  let data;
-  try { data = JSON.parse(text); } catch { data = { raw: text }; }
-  if (!res.ok) {
-    const msg = data?.error?.message || data?.error || data?.message || data?.detail || data?.raw || res.statusText;
-    const err = new Error(`${res.status}: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`.slice(0, 400));
-    err.status = res.status;
-    throw err;
+  if (!res.ok) throw httpError(res.status, text, res.statusText);
+  try { return JSON.parse(text); } catch { return { raw: text }; }
+}
+
+/**
+ * Server-sent events: onData(json) for every `data:` line as it arrives.
+ * Returns a plain JSON body instead, if the server ignored the stream request.
+ */
+async function streamRequest(url, opts, onData) {
+  const other = [];
+  const line = (l) => {
+    if (l.startsWith('data:')) {
+      const d = l.slice(5).trim();
+      if (d && d !== '[DONE]') { try { onData(JSON.parse(d)); } catch { } }
+    } else if (!l.startsWith('event:') && !l.startsWith(':')) other.push(l);
+  };
+  let status, errText = '';
+  try {
+    if (NATIVE) {
+      ({ status, text: errText } = await nativeStream(url, opts, line));
+    } else {
+      const res = await fetch(url, opts);
+      status = res.status;
+      if (!res.ok) errText = await res.text();
+      else {
+        const reader = res.body.getReader(), dec = new TextDecoder();
+        let buf = '';
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          lines.map(x => x.replace(/\r$/, '')).filter(Boolean).forEach(line);
+        }
+        if (buf.trim()) line(buf.trim());
+      }
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') throw e;
+    throw networkError(url);
   }
-  return data;
+  if (status >= 400) throw httpError(status, errText);
+  const rest = other.join('\n').trim();
+  if (rest.startsWith('{') || rest.startsWith('[')) { try { const j = JSON.parse(rest); return Array.isArray(j) ? j : j; } catch { } }
+  return null;
+}
+
+// Hides <think>…</think> blocks that some models put in their text stream.
+function thinkFilter(onText) {
+  let inThink = false, pending = '';
+  return (t) => {
+    pending += t;
+    let out = '';
+    for (;;) {
+      if (inThink) {
+        const end = pending.indexOf('</think>');
+        if (end < 0) { pending = pending.slice(-8); return out && onText(out); }
+        pending = pending.slice(end + 8); inThink = false;
+      } else {
+        const start = pending.indexOf('<think>');
+        if (start < 0) {
+          const keep = pending.lastIndexOf('<') > pending.length - 8 ? pending.lastIndexOf('<') : -1;
+          out += keep >= 0 ? pending.slice(0, keep) : pending;
+          pending = keep >= 0 ? pending.slice(keep) : '';
+          if (out) onText(out);
+          return;
+        }
+        out += pending.slice(0, start); pending = pending.slice(start + 7); inThink = true;
+      }
+    }
+  };
 }
 
 const MODEL_MISSING = /not.?found|does not exist|unknown model|invalid model|no such model|not supported|model_not_found|decommissioned/i;
@@ -185,7 +262,26 @@ function thinkingFor(model) {
   return [null];
 }
 
-async function geminiChat(s, model, { system, messages, tools, signal }) {
+function parseGemini(data, parts) {
+  const cand = data.candidates?.[0];
+  if (!cand && !parts.length) {
+    const reason = data.promptFeedback?.blockReason;
+    throw new Error(reason ? `Gemini blocked the request (${reason}).` : 'Gemini returned no answer.');
+  }
+  return cand?.content?.parts || [];
+}
+
+function geminiResult(parts) {
+  const text = parts.filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
+  const toolCalls = parts.filter(p => p.functionCall).map((p, i) => ({
+    id: p.functionCall.id || `call_local_${Date.now()}_${i}`,
+    name: p.functionCall.name,
+    args: p.functionCall.args || {},
+  }));
+  return { text, toolCalls, geminiParts: parts };
+}
+
+async function geminiChat(s, model, { system, messages, tools, signal, onText }) {
   const { base, viaServer } = endpoint(s, 'gemini');
   const body = {
     systemInstruction: { parts: [{ text: system }] },
@@ -203,34 +299,42 @@ async function geminiChat(s, model, { system, messages, tools, signal }) {
       }),
     }];
   }
-  const url = `${base}/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const headers = headersFor(s, 'gemini', viaServer);
+  const path = `${base}/v1beta/models/${encodeURIComponent(model)}`;
+  let streamed = null;
+  const send = async (b) => {
+    if (!onText) return request(`${path}:generateContent`, { method: 'POST', headers, body: JSON.stringify(b), signal });
+    streamed = [];
+    const plain = await streamRequest(`${path}:streamGenerateContent?alt=sse`, { method: 'POST', headers, body: JSON.stringify(b), signal }, (chunk) => {
+      for (const part of parseGemini(chunk, streamed)) {
+        if (part.text && !part.thought) onText(part.text);
+        if (part.text === '' && !part.thoughtSignature) continue;
+        streamed.push(part);
+      }
+    });
+    if (plain) { streamed = null; return Array.isArray(plain) ? plain[plain.length - 1] : plain; }
+    return null;
+  };
   let data;
   try {
-    data = await request(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+    data = await send(body);
   } catch (e) {
     // A model that rejects the thinking setting: step to the next one (finally, the model's default).
     let err = e;
     for (const next of thinking.slice(1)) {
       if (!(err.status === 400 && /think/i.test(err.message))) throw err;
       if (next) body.generationConfig.thinkingConfig = next; else delete body.generationConfig.thinkingConfig;
-      try { data = await request(url, { method: 'POST', headers, body: JSON.stringify(body), signal }); err = null; break; } catch (e2) { err = e2; }
+      try { data = await send(body); err = null; break; } catch (e2) { err = e2; }
     }
     if (err) throw err;
   }
-  const cand = data.candidates?.[0];
-  if (!cand) {
-    const reason = data.promptFeedback?.blockReason;
-    throw new Error(reason ? `Gemini blocked the request (${reason}).` : 'Gemini returned no answer.');
+  if (streamed) {
+    if (!streamed.length) throw new Error('Gemini returned no answer.');
+    return geminiResult(streamed);
   }
-  const parts = cand.content?.parts || [];
-  const text = parts.filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
-  const toolCalls = parts.filter(p => p.functionCall).map((p, i) => ({
-    id: p.functionCall.id || `call_local_${Date.now()}_${i}`,
-    name: p.functionCall.name,
-    args: p.functionCall.args || {},
-  }));
-  return { text, toolCalls, geminiParts: parts };
+  const parts = parseGemini(data, []);
+  if (onText) { const t = parts.filter(p => p.text && !p.thought).map(p => p.text).join(''); if (t) onText(t); }
+  return geminiResult(parts);
 }
 
 async function geminiModels(s) {
@@ -264,7 +368,7 @@ function toAnthropic(messages) {
 }
 const safeId = (id) => String(id || 'call').replace(/[^a-zA-Z0-9_-]/g, '_');
 
-async function anthropicChat(s, model, { system, messages, tools, signal }) {
+async function anthropicChat(s, model, { system, messages, tools, signal, onText }) {
   const { base, viaServer } = endpoint(s, 'claude');
   const body = { model, max_tokens: 1024, temperature: 0.6, system, messages: toAnthropic(messages) };
   if (tools?.length) {
@@ -273,10 +377,31 @@ async function anthropicChat(s, model, { system, messages, tools, signal }) {
       input_schema: t.parameters || { type: 'object', properties: {} },
     }));
   }
-  const data = await request(`${base}/v1/messages`, {
-    method: 'POST', headers: headersFor(s, 'claude', viaServer), body: JSON.stringify(body), signal,
-  });
-  const blocks = data.content || [];
+  const opts = { method: 'POST', headers: headersFor(s, 'claude', viaServer), signal };
+  let blocks;
+  if (onText) {
+    body.stream = true;
+    blocks = [];
+    const json = {};
+    const plain = await streamRequest(`${base}/v1/messages`, { ...opts, body: JSON.stringify(body) }, (ev) => {
+      if (ev.type === 'content_block_start') blocks[ev.index] = { ...ev.content_block };
+      else if (ev.type === 'content_block_delta') {
+        const b = blocks[ev.index] || (blocks[ev.index] = { type: 'text', text: '' });
+        if (ev.delta.type === 'text_delta') { b.text = (b.text || '') + ev.delta.text; onText(ev.delta.text); }
+        if (ev.delta.type === 'input_json_delta') json[ev.index] = (json[ev.index] || '') + ev.delta.partial_json;
+      } else if (ev.type === 'error') {
+        const err = new Error(`${ev.error?.type === 'overloaded_error' ? 529 : 500}: ${ev.error?.message || 'stream error'}`);
+        err.status = ev.error?.type === 'overloaded_error' ? 529 : 500;
+        throw err;
+      }
+    });
+    if (plain) blocks = plain.content || [];
+    blocks.forEach((b, i) => { if (b?.type === 'tool_use' && json[i]) { try { b.input = JSON.parse(json[i]); } catch { b.input = {}; } } });
+    blocks = blocks.filter(Boolean);
+  } else {
+    const data = await request(`${base}/v1/messages`, { ...opts, body: JSON.stringify(body) });
+    blocks = data.content || [];
+  }
   return {
     text: blocks.filter(b => b.type === 'text').map(b => b.text).join('').trim(),
     toolCalls: blocks.filter(b => b.type === 'tool_use').map(b => ({ id: b.id, name: b.name, args: b.input || {} })),
@@ -304,7 +429,16 @@ function toOpenAI(system, messages) {
   return out;
 }
 
-async function openaiChat(s, id, model, { system, messages, tools, signal }) {
+function openaiResult(msg) {
+  const toolCalls = (msg.tool_calls || []).filter(tc => tc?.function?.name).map(tc => {
+    let args = {};
+    try { args = typeof tc.function.arguments === 'string' ? JSON.parse(tc.function.arguments || '{}') : (tc.function.arguments || {}); } catch { }
+    return { id: tc.id || `call_local_${Date.now()}`, name: tc.function.name, args };
+  });
+  return { text: (msg.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim(), toolCalls };
+}
+
+async function openaiChat(s, id, model, { system, messages, tools, signal, onText }) {
   const { base, viaServer } = endpoint(s, id);
   const headers = headersFor(s, id, viaServer);
   const body = { model, messages: toOpenAI(system, messages) };
@@ -318,24 +452,36 @@ async function openaiChat(s, id, model, { system, messages, tools, signal }) {
     body.tool_choice = 'auto';
   }
   const url = `${base}/v1/chat/completions`;
-  let data;
+  const send = async () => {
+    if (!onText) return (await request(url, { method: 'POST', headers, body: JSON.stringify(body), signal })).choices?.[0]?.message || {};
+    const msg = { content: '', tool_calls: [] };
+    const emit = thinkFilter(onText);
+    const plain = await streamRequest(url, { method: 'POST', headers, body: JSON.stringify({ ...body, stream: true }), signal }, (chunk) => {
+      const d = chunk.choices?.[0]?.delta;
+      if (!d) return;
+      if (d.content) { msg.content += d.content; emit(d.content); }
+      for (const tc of d.tool_calls || []) {
+        const t = msg.tool_calls[tc.index ?? 0] || (msg.tool_calls[tc.index ?? 0] = { id: '', function: { name: '', arguments: '' } });
+        if (tc.id) t.id = tc.id;
+        if (tc.function?.name) t.function.name += tc.function.name;
+        if (tc.function?.arguments) t.function.arguments += tc.function.arguments;
+      }
+    });
+    if (plain) { const m = plain.choices?.[0]?.message || {}; if (m.content) emit(m.content); return m; }
+    return msg;
+  };
+  let msg;
   try {
-    data = await request(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+    msg = await send();
   } catch (e) {
     // Some models / local servers don't accept tools; retry without them.
     const noTools = body.tools && ([400, 404, 422].includes(e.status) && /tool|function/i.test(e.message)
       || (id === 'openjarvis' && e.status >= 400 && e.status < 500));
     if (!noTools) throw e;
     delete body.tools; delete body.tool_choice;
-    data = await request(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+    msg = await send();
   }
-  const msg = data.choices?.[0]?.message || {};
-  const toolCalls = (msg.tool_calls || []).map(tc => {
-    let args = {};
-    try { args = typeof tc.function.arguments === 'string' ? JSON.parse(tc.function.arguments || '{}') : (tc.function.arguments || {}); } catch { }
-    return { id: tc.id || `call_local_${Date.now()}`, name: tc.function.name, args };
-  });
-  return { text: (msg.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim(), toolCalls };
+  return openaiResult(msg);
 }
 
 async function openaiModels(s, id) {
@@ -430,11 +576,24 @@ async function geminiBackups(s) {
 // One provider: retry when busy; for Gemini, try other models (each has its own capacity and quota).
 // Whichever model works becomes the setting, so the next request goes straight there.
 async function chatProvider(s, id, req, onModelChange) {
+  // Once some of the answer has been streamed out, a retry would repeat it: give up instead.
+  let emitted = false;
+  if (req.onText) { const out = req.onText; req = { ...req, onText: (t) => { emitted = true; out(t); } }; }
+  try {
+    return await chatProviderInner(s, id, req, onModelChange, () => emitted);
+  } catch (e) {
+    if (emitted) e.emitted = true;
+    throw e;
+  }
+}
+
+async function chatProviderInner(s, id, req, onModelChange, emitted) {
   const p = PROVIDERS[id];
   let model = await ensureModel(s, id, onModelChange);
   try {
     return await chatWith(s, id, model, req);
   } catch (e) {
+    if (emitted()) throw e;
     // Retired model name: pick a current one.
     if ((e.status === 404 || ([400, 403].includes(e.status) && MODEL_MISSING.test(e.message))) && id !== 'openjarvis' && id !== 'custom') {
       const next = pickModel(id, await listModels(s, id).catch(() => []));
@@ -456,7 +615,7 @@ async function chatProvider(s, id, req, onModelChange) {
         onModelChange?.('geminiModel', backup);
         return res;
       } catch (e3) {
-        if (e3.name === 'AbortError') throw e3;
+        if (e3.name === 'AbortError' || emitted()) throw e3;
       }
     }
     throw e;
@@ -479,7 +638,7 @@ export async function chat(s, req, onModelChange, onFallback) {
   try {
     return await chatProvider(s, s.provider, req, onModelChange);
   } catch (e) {
-    if (e.name === 'AbortError' || !s.fallbackProviders || !e.status) throw e;
+    if (e.name === 'AbortError' || e.emitted || !s.fallbackProviders || !e.status) throw e;
     const others = Object.keys(PROVIDERS).filter(id => id !== s.provider && id !== 'openjarvis' && id !== 'custom' && hasCredentials(s, id));
     for (const id of others) {
       try {

@@ -124,6 +124,58 @@ class JarvisBridge(
         }
     }
 
+    private val streams = java.util.concurrent.ConcurrentHashMap<String, HttpURLConnection>()
+
+    /**
+     * Streaming HTTP (server-sent events): each line goes to window.__jarvisStreamLine(id, line) as it arrives,
+     * then window.__jarvisStreamEnd(id, status, errorBody). Status -1 = network error.
+     */
+    @JavascriptInterface
+    fun httpStream(id: String, url: String, method: String, headersJson: String, body: String) {
+        io.execute {
+            var status = 0
+            val q = { t: String -> JSONObject.quote(t) }
+            try {
+                val conn = URL(url).openConnection() as HttpURLConnection
+                streams[id] = conn
+                conn.requestMethod = method.uppercase()
+                conn.connectTimeout = 20_000
+                conn.readTimeout = 120_000
+                val headers = try { JSONObject(headersJson) } catch (ignored: Exception) { JSONObject() }
+                headers.keys().forEach { conn.setRequestProperty(it, headers.optString(it)) }
+                if (body.isNotEmpty() && conn.requestMethod != "GET") {
+                    conn.doOutput = true
+                    conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                }
+                status = conn.responseCode
+                if (status >= 400) {
+                    val text = conn.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
+                    js("window.__jarvisStreamEnd && window.__jarvisStreamEnd(${q(id)}, $status, ${q(text)})")
+                    return@execute
+                }
+                conn.inputStream.bufferedReader(Charsets.UTF_8).use { r ->
+                    while (streams.containsKey(id)) {
+                        val line = r.readLine() ?: break
+                        if (line.isNotEmpty()) js("window.__jarvisStreamLine && window.__jarvisStreamLine(${q(id)}, ${q(line)})")
+                    }
+                }
+                js("window.__jarvisStreamEnd && window.__jarvisStreamEnd(${q(id)}, $status, \"\")")
+            } catch (e: Exception) {
+                if (streams.containsKey(id)) {
+                    val msg = "Network error: ${e.message ?: e.javaClass.simpleName}"
+                    js("window.__jarvisStreamEnd && window.__jarvisStreamEnd(${q(id)}, -1, ${q(msg)})")
+                }
+            } finally {
+                streams.remove(id)?.disconnect()
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun httpAbort(id: String) {
+        streams.remove(id)?.let { conn -> io.execute { try { conn.disconnect() } catch (ignored: Exception) {} } }
+    }
+
     // ================================================================== launching things
 
     @JavascriptInterface

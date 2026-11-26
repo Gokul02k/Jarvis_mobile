@@ -21,7 +21,7 @@ const DEFAULTS = {
   customUrl: '', customKey: '', customModel: '',
   ojUrl: '', ojKey: '', ojModel: '',
   fallbackProviders: true,
-  localCommands: true, customCommands: [], conversation: false,
+  localCommands: true, customCommands: [], conversation: false, streaming: true,
   serverToken: '',
   wakeWord: 'jarvis',
   lang: navigator.language || 'en-US',
@@ -341,8 +341,40 @@ else if ('speechSynthesis' in window) {
   speechSynthesis.onvoiceschanged = loadVoices;
 }
 
+let speechEpoch = 0; // bumped on "stop", so queued sentences of a streamed answer are dropped
 function stopSpeaking() {
+  speechEpoch++;
   if (NATIVE) nativeStopSpeaking(); else window.speechSynthesis?.cancel();
+}
+
+// Streamed answers: show the text as it arrives and speak each sentence as soon as it's complete.
+function makeSpeaker() {
+  const epoch = speechEpoch;
+  let full = '', pending = '', el = null, chain = Promise.resolve(), started = false;
+  const say = (t) => {
+    t = t.trim();
+    if (!t) return;
+    chain = chain.then(() => (epoch === speechEpoch ? speak(t) : null));
+  };
+  return {
+    get started() { return started; },
+    get text() { return full; },
+    onText(delta) {
+      started = true;
+      full += delta; pending += delta;
+      if (!el) el = addMsg('assistant', '');
+      el.textContent = full;
+      scrollDown();
+      // Speak whole sentences: up to the last ". ", "! ", "? " or line break.
+      const m = pending.match(/^([\s\S]*[.!?…](?=\s)|[\s\S]*\n)/);
+      if (m && m[1].trim().length >= 2) { say(m[1]); pending = pending.slice(m[1].length); }
+    },
+    async finish(finalText) {
+      if (finalText && el) el.textContent = finalText;
+      say(pending); pending = '';
+      await chain;
+    },
+  };
 }
 
 async function speak(text) {
@@ -425,7 +457,7 @@ function updateModelLabel() {
 }
 
 // The AI agent loop: asks the model, runs the tools it picks, repeats until it answers. Returns the reply.
-async function askAI(text, signal) {
+async function askAI(text, signal, speaker) {
   const startLen = history.length;
   history.push({ role: 'user', content: text });
   const ctx = { settings, ui, signal, alert: fireAlert };
@@ -433,11 +465,13 @@ async function askAI(text, signal) {
     for (let step = 0; step < 6; step++) {
       const res = await chat(settings, {
         system: systemPrompt(), messages: history, tools: toolsFor(settings), signal,
+        onText: speaker && settings.streaming !== false ? (t) => speaker.onText(t) : undefined,
       }, (key, model) => { saveSettings(); updateModelLabel(); syncForm(); addTool('switched model', { model }); },
       (id) => addTool('answered by', { provider: PROVIDERS[id].label }));
       history.push({ role: 'assistant', content: res.text, toolCalls: res.toolCalls, geminiParts: res.geminiParts });
       if (!res.toolCalls.length) return res.text || 'Done.';
-      if (res.text) addMsg('assistant', res.text);
+      if (res.text && !speaker?.started) addMsg('assistant', res.text);
+      if (speaker?.started) speaker.onText(' ');
       for (const tc of res.toolCalls) {
         addTool(tc.name, tc.args);
         const out = await runTool(tc.name, tc.args, ctx);
@@ -453,9 +487,9 @@ async function askAI(text, signal) {
   }
 }
 
-async function finishReply(reply) {
-  addMsg('assistant', reply);
-  await speak(reply);
+async function finishReply(reply, speaker) {
+  if (speaker?.started) await speaker.finish();
+  else { addMsg('assistant', reply); await speak(reply); }
   if (state === 'speaking' || state === 'thinking') setState('idle');
   // Listen again for a follow-up: after a question, or after every answer in conversation mode.
   if (state === 'idle' && (settings.conversation || (settings.followUp && /\?\s*$/.test(reply)))) { chime(660); startRec('command'); return; }
@@ -491,8 +525,9 @@ async function handleCommand(text) {
       setState('idle'); resumeWake();
       return;
     }
-    // 2. Everything else: the AI.
-    await finishReply(await askAI(text, signal));
+    // 2. Everything else: the AI (streamed, so Jarvis starts talking before the answer is complete).
+    const speaker = makeSpeaker();
+    await finishReply(await askAI(text, signal, speaker), speaker);
   } catch (e) {
     if (e.name === 'AbortError') { setState('idle'); resumeWake(); return; }
     addMsg('error', e.message || String(e));
