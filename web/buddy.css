@@ -1,4 +1,4 @@
-/* Floating Jarvis companion bubble: an animated robot. */
+/* Floating Jarvis companion: a simple face on a glowing orb. */
 .jb {
   --ball: 68px;
   --state: #35d0ff;
@@ -27,8 +27,8 @@
   cursor: grab;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
-  background: radial-gradient(circle at 50% 35%, #1b2a3f, #0a121d 70%);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .45), 0 0 0 2px rgba(53, 208, 255, .25) inset;
+  background: radial-gradient(circle at 35% 28%, #7eecff 0%, #35c8ff 35%, #2b7bff 75%, #1f56d6 100%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .4), 0 0 18px rgba(53, 208, 255, .35), inset 0 -4px 10px rgba(10, 30, 90, .35);
 }
 .jb-ring {
   position: absolute; inset: -4px; border-radius: 50%;
@@ -41,7 +41,7 @@
 .jb[data-state="speaking"] .jb-ring { border-color: var(--state); box-shadow: 0 0 12px var(--state); }
 .jb[data-state="error"] .jb-ring { border-color: var(--state); }
 
-.jb-body { position: absolute; inset: 10%; display: block; transform-origin: 50% 85%; pointer-events: none; }
+.jb-body { position: absolute; inset: 6%; display: block; transform-origin: 50% 85%; pointer-events: none; }
 .jb-body.idle { animation: buddy-float 3.2s ease-in-out infinite; }
 .jb-body.hop { animation: buddy-hop 700ms cubic-bezier(0.3, 1.6, 0.5, 1) 2; }
 .jb-body.wiggle { animation: buddy-wiggle 650ms ease-in-out; }
@@ -101,14 +101,8 @@
 
 /* ---- face colours ---- */
 .buddy-svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.k-robot { --b-eye: #35d0ff; --b-mouth: #35d0ff; --b-lid: #1b2633; --b-glint: #fff; }
-
-.r-head { fill: #e6ecf3; stroke: #9aa9bb; stroke-width: 1.5; }
-.r-ear { fill: #9aa9bb; }
-.r-stalk { stroke: #9aa9bb; stroke-width: 2; stroke-linecap: round; }
-.r-bulb { fill: var(--state, #35d0ff); animation: buddy-pulse 2.4s ease-in-out infinite; }
-.r-shine { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; opacity: .7; }
-.r-screen { fill: #1b2633; }
+.k-robot { --b-eye: #ffffff; --b-mouth: #ffffff; --b-lid: #36aeff; --b-glint: transparent; }
+.f-shine { fill: #fff; opacity: .28; }
 .e-fill { fill: var(--b-eye); }
 .e-glint { fill: var(--b-glint); opacity: .9; }
 .e-lid { fill: var(--b-lid); }
@@ -121,7 +115,7 @@
 .m-fill { fill: var(--b-mouth); }
 .m-tongue { fill: #fb7185; }
 .e-heart { fill: #f43f5e; }
-.f-cheek { fill: #fb7185; opacity: .6; }
+.f-cheek { fill: #ff9ec0; opacity: .55; }
 .f-drop { fill: #93c5fd; }
 .f-tear { animation: buddy-tear 2.6s ease-in infinite; }
 .f-blink { transform-box: fill-box; transform-origin: center; transition: transform 90ms ease; }
@@ -151,13 +145,13 @@
 @keyframes buddy-bit { 0% { opacity: 0; transform: translate(0, 0) scale(.4); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .jb-body, .r-bulb, .f-tear, .jb .bit, .jb-ring { animation: none !important; }
+  .jb-body, .f-tear, .jb .bit, .jb-ring { animation: none !important; }
 }
 
 /* ---- bubble-only mode (Android overlay window) ---- */
 html.bubble-mode, html.bubble-mode body { background: transparent !important; overflow: hidden; }
 html.bubble-mode body > *:not(.jb) { display: none !important; }
-html.bubble-mode .jb { top: 6px !important; left: 6px !important; }
+html.bubble-mode .jb { --ball: 52px; top: 6px !important; left: 6px !important; }
 html.bubble-mode .jb.on-right { left: auto !important; right: 6px !important; }
 html.bubble-mode .jb-say { top: 2px; transform: none; max-height: calc(100vh - 10px); animation: jb-say-pop .2s ease-out; }
 @keyframes jb-say-pop { from { opacity: 0; transform: scale(.9); } }

@@ -64,7 +64,7 @@ class BubbleService : Service() {
     private var pageReady = false
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-    private val ballPx get() = dp(80)              // 68dp ball + 6dp margin each side (see buddy.css)
+    private val ballPx get() = dp(64)              // 52dp ball + 6dp margin each side (see buddy.css)
     private val screenW get() = resources.displayMetrics.widthPixels
     private val screenH get() = resources.displayMetrics.heightPixels
     private val expandedW get() = min(screenW - dp(8), dp(340))

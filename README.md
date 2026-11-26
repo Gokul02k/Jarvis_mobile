@@ -6,7 +6,7 @@
 
 ### *“At your service.”* — a floating, voice-controlled assistant for your phone
 
-A little robot lives in a circle on your screen **over every app**.
+A friendly little face lives in a bubble on your screen **over every app**.
 Tap it or say **“Jarvis…”** and it **does the work**: calls, alarms, music, navigation,
 flashlight, settings, and controlling the screen like Voice Access.
 Everyday commands run **instantly on the phone**; everything else goes to the AI you choose:
@@ -20,13 +20,15 @@ Everyday commands run **instantly on the phone**; everything else goes to the AI
 ![Groq](https://img.shields.io/badge/Groq-fast-F55036?style=for-the-badge)
 ![OpenJarvis](https://img.shields.io/badge/OpenJarvis-compatible-8a2be2?style=for-the-badge)
 
-<img src="docs/bubble.png" width="620" alt="The Jarvis robot bubble">
+<img src="docs/faces.png" width="640" alt="Jarvis faces: ready, listening, thinking, speaking, happy, petted">
 
 <sub>The ring shows what it's doing: <b>blue</b> listening · <b>amber</b> thinking · <b>green</b> speaking</sub>
 
 <br><br>
 
-<img src="docs/screenshot-chat.png" width="250" alt="Jarvis app">&nbsp;&nbsp;&nbsp;<img src="docs/bubble.png" width="330" alt="Floating bubble talking">
+<img src="docs/screenshot-chat.png" width="250" alt="Jarvis app: instant commands">&nbsp;&nbsp;<img src="docs/screenshot-settings.png" width="250" alt="Settings">
+
+<img src="docs/bubble.png" width="520" alt="Floating bubble talking over the home screen">
 
 </div>
 
@@ -45,7 +47,7 @@ Everyday commands run **instantly on the phone**; everything else goes to the AI
 | 🎙️ **Touch or call** | Tap it to talk, or turn on the wake word and just say **“Jarvis, …”** |
 | 🌙 **Runs in the background** | Foreground service with a mic, so it keeps listening while you use other apps. Optional start on boot |
 | 🔄 **Updates itself** | Settings → About → **Update now** downloads the newest build from GitHub |
-| 🤖 **A living companion** | An animated robot. It blinks, its eyes follow your finger, it yawns and naps, and it reacts when you pet, poke, tickle or fling it |
+| 🙂 **A living companion** | A simple animated face on a glowing orb. It blinks, its eyes follow your finger, it yawns and naps, and it reacts when you pet, poke, tickle or fling it |
 | 🔐 **Private** | Keys stay on your phone (or your own PC server). Notes, memory and your commands stay on the device |
 
 ## 👆 Touch the bubble
@@ -175,7 +177,7 @@ Tabs: **General · Brain · Voice · Commands · Phone · About**. **Swipe left 
 |---|---|
 | **General** | Your name, contacts, music app, memory |
 | **Brain** | AI provider, model, fallback, test connection, all API keys |
-| **Voice** | Wake word, language, voice, speed, robot beeps |
+| **Voice** | Wake word, language, voice, speed, beeps |
 | **Commands** | Your commands, the instant-command list, screen control |
 | **Phone** | Permissions, background running, floating bubble, start on boot |
 | **About** | Updates and app info |
@@ -256,7 +258,7 @@ In the app, either choose **Brain → OpenJarvis**, or keep another provider and
 | `web/llm.js` | All AI providers (Gemini, Claude, OpenAI-compatible), retries and fallback |
 | `web/tools.js` | The 33 actions, with native versions when running in the app |
 | `web/update.js` | In-app update check and install |
-| `web/buddy.js`, `buddy.css` | The animated robot companion |
+| `web/buddy.js`, `buddy.css` | The animated face companion |
 | `web/native.js` | Bridge to Android (speech, HTTP, device controls) |
 | `android/…/BubbleService.kt` | Floating overlay, drag and snap, ✕ to close, foreground service |
 | `android/…/JarvisBridge.kt` | Native phone abilities exposed to the web code |

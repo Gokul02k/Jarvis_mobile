@@ -1,4 +1,4 @@
-// The Jarvis companion: a little animated robot in a floating circle.
+// The Jarvis companion: a simple animated face on a glowing orb.
 //
 //   const b = createBuddy(el, { kind, onTap, onDoubleTap, onDrag });
 //   b.setState('idle' | 'wake' | 'listening' | 'thinking' | 'speaking' | 'error')
@@ -337,12 +337,8 @@ function faceSVG(kind, face, look, shut) {
 }
 
 function headSVG() {
-  return `
-    <line x1="32" y1="13" x2="32" y2="6.5" class="r-stalk"/><circle cx="32" cy="5" r="3.2" class="r-bulb"/>
-    <rect x="3" y="27" width="6" height="12" rx="3" class="r-ear"/><rect x="55" y="27" width="6" height="12" rx="3" class="r-ear"/>
-    <rect x="7.5" y="12.5" width="49" height="41" rx="14" class="r-head"/>
-    <path d="M13.5 19 q3.5 -3 9 -3.4" class="r-shine"/>
-    <rect x="13" y="19.5" width="38" height="28" rx="10" class="r-screen"/>`;
+  // The ball itself is the face (see .jb-ball in buddy.css); just a soft highlight here.
+  return '<ellipse cx="22" cy="15" rx="9" ry="5" class="f-shine"/>';
 }
 
 function eyeSVG(kind, cx, side) {
@@ -356,14 +352,14 @@ function eyeSVG(kind, cx, side) {
   if (kind === 'happy') return `<path d="M${cx - 4.2} ${cy + 1.6} Q${cx} ${cy - 4} ${cx + 4.2} ${cy + 1.6}" class="e-line"/>`;
   if (kind === 'closed') return `<path d="M${cx - 4} ${cy} Q${cx} ${cy + 2.6} ${cx + 4} ${cy}" class="e-line"/>`;
   if (kind === 'dizzy') return `<g><circle cx="${cx}" cy="${cy}" r="4" class="e-ring"/><circle cx="${cx + 0.5}" cy="${cy - 0.4}" r="1.5" class="e-ring"/></g>`;
-  const r = kind === 'wide' ? 5 : 4.2;
+  const rx = kind === 'wide' ? 3.8 : 3.2, ry = kind === 'wide' ? 5.4 : 4.6;
   let lid = '';
   if (kind === 'droop') {
     lid = side === 'left'
       ? `M${cx - 6} ${cy - 6} H${cx + 6} V${cy - 3.4} L${cx - 6} ${cy + 0.4} Z`
       : `M${cx - 6} ${cy - 6} H${cx + 6} V${cy + 0.4} L${cx - 6} ${cy - 3.4} Z`;
   }
-  return `<g><circle cx="${cx}" cy="${cy}" r="${r}" class="e-fill"/><circle cx="${cx - 1.4}" cy="${cy - 1.5}" r="${kind === 'wide' ? 1.5 : 1.2}" class="e-glint"/>${lid ? `<path d="${lid}" class="e-lid"/>` : ''}</g>`;
+  return `<g><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" class="e-fill"/>${lid ? `<path d="${lid}" class="e-lid"/>` : ''}</g>`;
 }
 
 function mouthSVG(kind) {
