@@ -188,8 +188,9 @@ Tabs: **General · Brain · Voice · Commands · Phone · About**. **Swipe left 
    - **Brain → API keys:** add at least one key (Gemini, Groq and Mistral are free)
    - **Phone → Grant permissions** (microphone, contacts, phone, location, notifications, display over other apps)
    - **Phone → Allow running in background** (so Android doesn't kill it)
-   - **Phone → Start bubble** 🫧
-4. *(Optional)* **Commands → Screen control**, **Wake word**, **Start on boot**, and the **“Talk to Jarvis”** quick-settings tile.
+   - **Start bubble** 🫧 (the blue button at the top of the home screen, or Settings → Phone)
+4. **Hands-free:** turn on **Listen for “Jarvis”** (Settings → Phone, or *Wake word* on the home screen), then just say *“Jarvis, …”*, no tap needed. Turn on **Voice → Keep the conversation going** to ask follow-ups without saying “Jarvis” again.
+5. *(Optional)* **Commands → Screen control**, **Start on boot**, and the **“Talk to Jarvis”** quick-settings tile.
 
 **Updating:** Settings → About → **Check for updates → Update now**. Jarvis downloads the new build, Android asks you to confirm, and your settings, keys and memory are kept. A dot on ⚙ tells you when an update is ready. *(Builds made before in-app updates existed need one manual install from the release page.)*
 

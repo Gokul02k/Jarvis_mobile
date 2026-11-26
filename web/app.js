@@ -21,7 +21,7 @@ const DEFAULTS = {
   customUrl: '', customKey: '', customModel: '',
   ojUrl: '', ojKey: '', ojModel: '',
   fallbackProviders: true,
-  localCommands: true, customCommands: [],
+  localCommands: true, customCommands: [], conversation: false,
   serverToken: '',
   wakeWord: 'jarvis',
   lang: navigator.language || 'en-US',
@@ -261,6 +261,34 @@ function resumeWake() {
   setTimeout(() => { if (wakeOn && !rec && state !== 'thinking' && state !== 'speaking' && visible()) startRec('wake'); }, NATIVE ? 400 : 250);
 }
 
+// The full app hands listening over to the bubble, without changing the saved wake-word setting.
+function quietLocalWake() {
+  wakeOn = false; awaitingCommand = false;
+  stopRec();
+  if (state === 'wake' || state === 'listening') setState('idle');
+  try { wakeLock?.release(); } catch { }
+  wakeLock = null;
+}
+
+function startBubble() {
+  const r = nativeSync('startBubble');
+  if (r && !r.ok && r.reason) { alert(r.reason); return false; }
+  quietLocalWake();
+  setTimeout(refreshFloatButton, 800);
+  return true;
+}
+
+// "Start bubble" on the home screen, shown whenever the bubble isn't running.
+function refreshFloatButton() {
+  const btn = $('#btn-float');
+  btn.hidden = !NATIVE || IS_BUBBLE || !!nativeSync('bubbleState')?.running;
+}
+if (NATIVE && !IS_BUBBLE) {
+  $('#btn-float').addEventListener('click', startBubble);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshFloatButton(); });
+  refreshFloatButton();
+}
+
 async function setWake(on) {
   // While the floating bubble runs, it does the listening; the full app just flips the setting.
   if (NATIVE && !IS_BUBBLE && nativeSync('bubbleState')?.running) {
@@ -282,6 +310,8 @@ async function setWake(on) {
     if (state === 'wake' || state === 'listening') { stopRec(); setState('idle'); }
   }
   store.set('wake', on);
+  const chk = document.querySelector('#chk-wake');
+  if (chk) chk.checked = on;
 }
 
 document.addEventListener('visibilitychange', async () => {
@@ -427,7 +457,8 @@ async function finishReply(reply) {
   addMsg('assistant', reply);
   await speak(reply);
   if (state === 'speaking' || state === 'thinking') setState('idle');
-  if (settings.followUp && /\?\s*$/.test(reply) && state === 'idle') { chime(660); startRec('command'); return; }
+  // Listen again for a follow-up: after a question, or after every answer in conversation mode.
+  if (state === 'idle' && (settings.conversation || (settings.followUp && /\?\s*$/.test(reply)))) { chime(660); startRec('command'); return; }
   resumeWake();
 }
 
@@ -776,10 +807,11 @@ if (NATIVE) {
   $('#btn-perms').addEventListener('click', () => NATIVE.requestPermissions());
   $('#btn-battery').addEventListener('click', () => NATIVE.requestBackground());
   $('#btn-bubble-start').addEventListener('click', () => {
-    const r = nativeSync('startBubble');
-    if (r && !r.ok && r.reason) alert(r.reason);
-    else { dialog.close(); setWake(false); }
+    if (startBubble()) dialog.close();
   });
+  const wakeChk = $('#chk-wake');
+  wakeChk.checked = !!store.get('wake', false);
+  wakeChk.addEventListener('change', () => setWake(wakeChk.checked));
   $('#btn-bubble-stop').addEventListener('click', () => NATIVE.stopBubble());
   const boot = $('#chk-boot');
   boot.checked = !!nativeSync('bubbleState')?.onBoot;

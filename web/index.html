@@ -23,9 +23,15 @@
         <p id="model-label" class="sub">—</p>
       </div>
     </div>
+    <div class="top-actions">
+    <button id="btn-float" class="pill-btn" type="button" hidden>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+      Start bubble
+    </button>
     <button id="btn-settings" class="icon-btn" aria-label="Settings"><i class="gear-dot" id="gear-dot" hidden></i>
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
+    </div>
   </header>
 
   <main id="log" aria-live="polite">
@@ -212,6 +218,8 @@
               </div>
               <label class="switch"><input data-key="followUp" type="checkbox"><i></i>
                 <span><b>Keep listening after a question</b><small>reply without tapping when Jarvis asks you something</small></span></label>
+              <label class="switch"><input data-key="conversation" type="checkbox"><i></i>
+                <span><b>Keep the conversation going</b><small>after every answer Jarvis listens again for a few seconds, so follow-ups need no tap or wake word</small></span></label>
             </div>
           </article>
 
@@ -292,6 +300,8 @@
                 <button type="button" id="btn-bubble-start" class="btn primary">Start bubble</button>
                 <button type="button" id="btn-bubble-stop" class="btn">Stop bubble</button>
               </div>
+              <label class="switch"><input type="checkbox" id="chk-wake"><i></i>
+                <span><b>Listen for “Jarvis” (hands-free)</b><small>say “Jarvis, …” any time instead of tapping the bubble</small></span></label>
               <label class="switch"><input type="checkbox" id="chk-boot"><i></i>
                 <span><b>Start when the phone turns on</b><small>the bubble comes back after a restart</small></span></label>
             </div>
