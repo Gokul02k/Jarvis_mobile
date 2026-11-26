@@ -5,7 +5,7 @@
 //
 // ctx: { settings, ui, signal, alert, ai(text) → Promise<reply> }
 
-import { runTool, screenAction } from './tools.js';
+import { runTool, screenAction, newsHeadlines } from './tools.js';
 import { NATIVE, nativeSync } from './native.js';
 
 // ------------------------------------------------------------------ text helpers
@@ -276,6 +276,14 @@ export const BUILTINS = [
       if (/rain/.test(t) && d) return `${d.rain_chance_pct} percent chance of rain ${tomorrow ? 'tomorrow' : 'today'}${where}.`;
       if (tomorrow && d) return `Tomorrow${where}: ${d.conditions}, ${Math.round(d.min_c)} to ${Math.round(d.max_c)} degrees.`;
       return `It's ${Math.round(r.now.temp_c)} degrees and ${r.now.conditions}${where}.${d ? ` Today ${Math.round(d.min_c)} to ${Math.round(d.max_c)}, ${d.rain_chance_pct} percent chance of rain.` : ''}`;
+    } },
+
+  { group: 'Web & maps', examples: ['what\'s the news', 'news about cricket'], native: true,
+    re: /^(?:what(?:'s| is) the |read (?:me )?the |today's |latest |top )?(?:news|headlines)(?: today| now)?$|^(?:news|headlines|latest news) (?:about|on) (.+)$/,
+    run: async (m, ctx) => {
+      const list = await newsHeadlines(ctx.settings, m[1], ctx.signal, 5).catch(() => []);
+      if (!list.length) return 'I couldn\'t get the news right now.';
+      return `${m[1] ? `News about ${m[1]}` : 'Top headlines'}. ${list.map(n => `${n.title}, from ${n.source}`).join('. ')}.`;
     } },
 
   // ---- notes

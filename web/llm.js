@@ -680,6 +680,31 @@ export function explainError(e) {
   return 'Sorry, I ran into a problem reaching the AI.';
 }
 
+/**
+ * Answers a question from live Google results using Gemini's built-in Google Search.
+ * Returns { answer, sources: [{ title, url }] }, or null when there's no Gemini key.
+ */
+export async function groundedSearch(s, query, signal) {
+  if (!hasCredentials(s, 'gemini')) return null;
+  const model = s.geminiModel || 'gemini-2.5-flash';
+  const { base, viaServer } = endpoint(s, 'gemini');
+  const body = {
+    contents: [{ role: 'user', parts: [{ text: `${query}\n\nAnswer briefly and factually from current web results.` }] }],
+    tools: [{ google_search: {} }],
+    generationConfig: { temperature: 0.3, maxOutputTokens: 600 },
+  };
+  const thinking = thinkingFor(model)[0];
+  if (thinking) body.generationConfig.thinkingConfig = thinking;
+  const data = await request(`${base}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    method: 'POST', headers: headersFor(s, 'gemini', viaServer), body: JSON.stringify(body), signal,
+  });
+  const cand = data.candidates?.[0];
+  const answer = (cand?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
+  const sources = (cand?.groundingMetadata?.groundingChunks || [])
+    .map(c => c.web).filter(Boolean).map(w => ({ title: w.title || w.domain || 'source', url: w.uri }));
+  return { answer, sources: sources.slice(0, 5) };
+}
+
 // Used by the ask_openjarvis tool: send a task to the OpenJarvis agent on your computer.
 export async function askOpenJarvis(s, task, signal) {
   const res = await chatProvider(s, 'openjarvis', {

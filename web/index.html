@@ -164,6 +164,16 @@
           </article>
 
           <article class="s-card">
+            <header class="s-head"><h3>Web search</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>When you ask about news, prices, scores or anything current, Jarvis looks it up. With a Gemini key it uses Google Search through Gemini (best). Otherwise it uses Google News and Wikipedia, or Tavily if you add a free key (1,000 searches a month).</p>
+              <label>Tavily key <small>optional · <a href="https://app.tavily.com" target="_blank" rel="noopener">get a free key ↗</a></small>
+                <input data-key="tavilyKey" type="password" placeholder="tvly-…" autocomplete="off">
+              </label>
+            </div>
+          </article>
+
+          <article class="s-card">
             <header class="s-head"><h3>Connection</h3><button type="button" class="info" aria-label="More info">i</button></header>
             <div class="s-body">
               <p class="s-more" hidden>Keys typed here are stored only on this phone. To keep them off the phone, put them in the Jarvis server's <code>.env</code> file and choose “Always via Jarvis server”.</p>

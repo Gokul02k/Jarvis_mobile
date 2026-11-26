@@ -1,8 +1,8 @@
 // Tools Jarvis can use on the phone. Each tool: { name, description, parameters, run(args, ctx) }.
 // ctx = { settings, ui: { card(title, detail, actions) }, speak(text), notify(title, body), signal }
 
-import { askOpenJarvis, openJarvisAvailable } from './llm.js';
-import { NATIVE, nativeSync } from './native.js';
+import { askOpenJarvis, openJarvisAvailable, groundedSearch } from './llm.js';
+import { NATIVE, nativeSync, nativeFetch } from './native.js';
 
 const nativeOnly = () => !!NATIVE;
 
@@ -167,6 +167,78 @@ const APPS = {
 
 // ---------------------------------------------------------------- tools
 
+// ------------------------------------------------------------------ web reading
+
+const UA = { 'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Mobile Safari/537.36' };
+
+async function getText(url, signal) {
+  if (!NATIVE) throw new Error('Reading the web needs the Android app (browsers block it).');
+  const res = await nativeFetch(url, { headers: UA, signal });
+  if (!res.ok) throw new Error(`The site answered ${res.status}.`);
+  return res.text();
+}
+
+// Region for news, from the speech language ("en-IN" → India).
+function region(settings) {
+  const [lang, cc] = String(settings.lang || 'en-US').split('-');
+  return { hl: `${lang}-${(cc || 'US').toUpperCase()}`, gl: (cc || 'US').toUpperCase(), lang };
+}
+
+/** Google News headlines (free RSS). No query = top stories. [{ title, source, url, age }] */
+export async function newsHeadlines(settings, query, signal, max = 6) {
+  const { hl, gl, lang } = region(settings);
+  const q = query ? `/search?q=${encodeURIComponent(query)}&` : '?';
+  const xml = await getText(`https://news.google.com/rss${q}hl=${hl}&gl=${gl}&ceid=${gl}:${lang}`, signal);
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  return [...doc.querySelectorAll('item')].slice(0, max).map(it => {
+    const source = it.querySelector('source')?.textContent.trim() || '';
+    const title = (it.querySelector('title')?.textContent || '').replace(new RegExp(`\\s+-\\s+${source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), '').trim();
+    const hours = Math.round((Date.now() - Date.parse(it.querySelector('pubDate')?.textContent || '')) / 3600000);
+    return { title, source, url: it.querySelector('link')?.textContent.trim() || '', age: Number.isFinite(hours) ? (hours < 1 ? 'just now' : hours < 48 ? `${hours} h ago` : `${Math.round(hours / 24)} days ago`) : '' };
+  });
+}
+
+/** Wikipedia: best matching articles with a short summary. */
+async function wikiSearch(query, signal) {
+  const res = await (NATIVE ? nativeFetch : fetch)(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&srlimit=3&origin=*`, { signal });
+  const hits = (await res.json())?.query?.search || [];
+  const out = [];
+  for (const h of hits.slice(0, 2)) {
+    try {
+      const r = await (NATIVE ? nativeFetch : fetch)(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(h.title.replace(/ /g, '_'))}`, { signal });
+      const j = await r.json();
+      out.push({ title: j.title, url: j.content_urls?.mobile?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(h.title)}`, summary: (j.extract || '').slice(0, 600) });
+    } catch { }
+  }
+  return out;
+}
+
+/** Tavily web search (optional free key). */
+async function tavilySearch(key, query, signal) {
+  const body = JSON.stringify({ query, max_results: 5, include_answer: true });
+  const opts = { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body, signal };
+  const res = await (NATIVE ? nativeFetch(`https://api.tavily.com/search`, opts) : fetch(`https://api.tavily.com/search`, opts));
+  if (!res.ok) throw new Error(`Tavily answered ${res.status}`);
+  const j = await res.json();
+  return { answer: j.answer || '', sources: (j.results || []).map(r => ({ title: r.title, url: r.url, snippet: (r.content || '').slice(0, 300) })) };
+}
+
+/** The readable text of a web page (title + main content). */
+export async function readPage(url, signal, max = 7000) {
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  const html = await getText(url, signal);
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('script, style, noscript, svg, nav, header, footer, aside, form, iframe, [aria-hidden="true"]').forEach(n => n.remove());
+  const main = doc.querySelector('article') || doc.querySelector('main') || doc.body;
+  const text = (main?.textContent || '').replace(/\s+/g, ' ').trim();
+  return { title: doc.title.trim(), url, text: text.slice(0, max), truncated: text.length > max };
+}
+
+function showSources(ctx, sources) {
+  if (!sources?.length) return;
+  ctx.ui.card('Sources', '', sources.slice(0, 4).map(s => ({ label: (s.title || new URL(s.url).hostname).slice(0, 40), href: s.url })));
+}
+
 export const TOOLS = [
   {
     name: 'get_datetime',
@@ -182,6 +254,38 @@ export const TOOLS = [
     },
   },
   {
+    name: 'search_web',
+    description: 'Look something up on the internet and get the answer with sources: news, scores, prices, weather elsewhere, recent events, opening hours, anything current or that you are unsure about. Prefer this over guessing. Mention the source briefly when you answer.',
+    parameters: obj({ query: S('What to look up, as a clear search question') }, ['query']),
+    run: async ({ query }, ctx) => {
+      // 1. Gemini + Google Search (best), 2. Tavily (optional key), 3. free: Google News + Wikipedia.
+      try {
+        const g = await groundedSearch(ctx.settings, query, ctx.signal);
+        if (g?.answer) { showSources(ctx, g.sources); return { answer: g.answer, sources: g.sources.map(s => s.title) }; }
+      } catch (e) { if (e.name === 'AbortError') throw e; }
+      if (ctx.settings.tavilyKey) {
+        try {
+          const t = await tavilySearch(ctx.settings.tavilyKey, query, ctx.signal);
+          showSources(ctx, t.sources);
+          return { answer: t.answer, results: t.sources };
+        } catch (e) { if (e.name === 'AbortError') throw e; }
+      }
+      const [news, wiki] = await Promise.all([
+        newsHeadlines(ctx.settings, query, ctx.signal, 5).catch(() => []),
+        wikiSearch(query, ctx.signal).catch(() => []),
+      ]);
+      if (!news.length && !wiki.length) return { error: 'No results found.' };
+      showSources(ctx, [...wiki, ...news].map(r => ({ title: r.title, url: r.url })));
+      return { news: news.map(({ title, source, age }) => ({ title, source, age })), encyclopedia: wiki.map(({ title, summary }) => ({ title, summary })), note: 'Answer from these; say if they do not cover the question.' };
+    },
+  },
+  {
+    name: 'read_webpage',
+    description: 'Fetch a web page or article by URL and return its text, to summarise it or answer questions about it. Use with a URL from search_web results or one the user gives.',
+    parameters: obj({ url: S('The page URL') }, ['url']),
+    run: ({ url }, ctx) => readPage(url, ctx.signal),
+  },
+  {
     name: 'open_website',
     description: 'Open a website or web URL in the browser.',
     parameters: obj({ url: S('Full URL, e.g. https://example.com') }, ['url']),
@@ -192,7 +296,7 @@ export const TOOLS = [
   },
   {
     name: 'web_search',
-    description: 'Open a Google search (or images/news/YouTube search) for a query on the phone. Use when the user asks to search, or for live info you do not know.',
+    description: 'Open a Google search (or images/news/YouTube search) on the phone screen for the user to browse. To answer a question yourself, use search_web instead.',
     parameters: obj({
       query: S('What to search for'),
       type: S('Kind of search', { enum: ['web', 'images', 'news', 'youtube'] }),
