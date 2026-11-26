@@ -563,6 +563,10 @@ class JarvisBridge(
         }
     }
 
+    // ================================================================== scheduled commands
+
+    @JavascriptInterface fun setSchedules(json: String) { Scheduler.set(ctx, json) }
+
     // ================================================================== notifications
 
     @JavascriptInterface

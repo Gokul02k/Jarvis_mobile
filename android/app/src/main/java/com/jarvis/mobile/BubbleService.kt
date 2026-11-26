@@ -169,6 +169,11 @@ class BubbleService : Service() {
     }
 
     private val reload = Runnable { if (::web.isInitialized) { pageReady = false; web.reload() } }
+    /** Runs a Jarvis command in the bubble (scheduled commands, the morning briefing). */
+    fun runCommand(text: String) = main.post {
+        if (::bridge.isInitialized) bridge.js("window.__jarvisRun && window.__jarvisRun(${JSONObject.quote(text)})")
+    }
+
     fun reloadSoon() = main.post {
         main.removeCallbacks(reload)
         main.postDelayed(reload, 1200)

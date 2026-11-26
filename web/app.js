@@ -3,7 +3,7 @@ import { toolsFor, runTool, initScheduler, activeTimers, store } from './tools.j
 import { createBuddy } from './buddy.js';
 import { NATIVE, IS_BUBBLE, NativeSpeechRecognition, nativeSpeak, nativeStopSpeaking, nativeSync } from './native.js';
 import { initUpdates, refreshAbout } from './update.js';
-import { runLocal, BUILTINS, TEMPLATES } from './commands.js';
+import { runLocal, BUILTINS, TEMPLATES, DAYS } from './commands.js';
 
 if (IS_BUBBLE) document.documentElement.classList.add('bubble-mode');
 if (NATIVE) document.documentElement.classList.add('in-app');
@@ -21,6 +21,7 @@ const DEFAULTS = {
   customUrl: '', customKey: '', customModel: '',
   ojUrl: '', ojKey: '', ojModel: '',
   fallbackProviders: true, tavilyKey: '',
+  briefingOn: false, briefingTime: '07:00', briefingDays: 'daily', briefingNews: true,
   localCommands: true, customCommands: [], conversation: false, streaming: true,
   serverToken: '',
   wakeWord: 'jarvis',
@@ -77,6 +78,8 @@ window.__jarvisAlert = (title, body) => {
 };
 // Native "tap to talk" from the notification / quick-settings tile.
 window.__jarvisTalk = () => onTalk();
+// Scheduled commands and notification taps run a command as if you'd said it.
+window.__jarvisRun = (text) => { if (text) handleCommand(String(text)); };
 
 let dragFrom = null;
 function placeBuddy(x, y, snap) {
@@ -669,6 +672,7 @@ form.addEventListener('input', (e) => {
   if (key === 'wakeWord') setState(state);
   if (key === 'buddySound') buddy.setSound(settings.buddySound);
   if (key === 'serverUrl') detectServer();
+  if (/^briefing/.test(key)) syncSchedules();
   if (key === 'rate') $('#rate-out').textContent = `${Number(settings.rate).toFixed(2)}×`;
 });
 
@@ -775,6 +779,12 @@ function renderCustom(focusLast) {
         <textarea data-f="actions" rows="3" placeholder="turn off the flashlight&#10;set an alarm for 6:30 am">${escA(c.actions || '')}</textarea></label>
       <label>Then say <small>optional</small>
         <input data-f="reply" value="${escA(c.reply || '')}" placeholder="Good night!" autocomplete="off"></label>
+      ${NATIVE ? `<div class="row">
+        <label class="grow">Run automatically
+          <select data-f="days">${[['', 'Only when I say it'], ['daily', 'Every day'], ['weekdays', 'Weekdays'], ['weekends', 'Weekends']]
+            .map(([v, l]) => `<option value="${v}"${(c.days || '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="grow">At <input data-f="at" type="time" value="${escA(c.at || '07:00')}"></label>
+      </div>` : ''}
       <div class="row"><button type="button" class="btn small" data-act="try">Try it</button><button type="button" class="btn small danger" data-act="delete">Delete</button></div>
     </div>`).join('') : '<p class="hint">No commands yet. Add one, or start from an example below.</p>';
   if (focusLast) list.querySelector('.cmd-row:last-child [data-f="phrases"]')?.focus();
@@ -785,6 +795,7 @@ customList.addEventListener('input', (e) => {
   if (!f || !row) return;
   settings.customCommands[row.dataset.i][f] = e.target.value;
   saveSettings();
+  if (f === 'days' || f === 'at' || f === 'phrases') syncSchedules();
 });
 customList.addEventListener('click', (e) => {
   const act = e.target.closest('[data-act]')?.dataset.act;
@@ -794,7 +805,7 @@ customList.addEventListener('click', (e) => {
   if (act === 'delete') {
     if (!confirm(`Delete “${cmd.phrases || 'this command'}”?`)) return;
     settings.customCommands.splice(i, 1);
-    saveSettings(); renderCustom();
+    saveSettings(); renderCustom(); syncSchedules();
   } else if (act === 'try') {
     const phrase = String(cmd.phrases || '').split(',')[0].trim();
     if (!phrase) return alert('Type what you will say first.');
@@ -810,8 +821,23 @@ $('#cmd-templates').addEventListener('click', (e) => {
   const t = TEMPLATES[e.target.closest('[data-template]')?.dataset.template];
   if (!t) return;
   settings.customCommands = [...(settings.customCommands || []), { ...t }];
-  saveSettings(); renderCustom(true);
+  saveSettings(); renderCustom(true); syncSchedules();
 });
+
+// Scheduled commands (morning briefing + "run automatically") are kept by Android's alarm clock.
+function syncSchedules() {
+  if (!NATIVE || IS_BUBBLE || typeof NATIVE.setSchedules !== 'function') return;
+  const hm = (v) => { const [h, m] = String(v || '').split(':').map(Number); return Number.isFinite(h) ? { hour: h, minute: m || 0 } : null; };
+  const list = [];
+  const bt = hm(settings.briefingTime || '07:00');
+  if (settings.briefingOn && bt) list.push({ id: 'briefing', command: 'morning briefing', label: 'Your morning briefing', ...bt, days: DAYS[settings.briefingDays] || [] });
+  (settings.customCommands || []).forEach((c, i) => {
+    const phrase = String(c.phrases || '').split(',')[0].trim(), t = hm(c.at);
+    if (c.days && t && phrase) list.push({ id: `cmd${i}-${phrase}`.slice(0, 40), command: phrase, label: cap1(phrase), ...t, days: DAYS[c.days] || [] });
+  });
+  NATIVE.setSchedules(JSON.stringify(list));
+}
+$('#btn-try-briefing').addEventListener('click', () => { dialog.close(); handleCommand('morning briefing'); });
 
 function refreshNotifyState() {
   if (!NATIVE) return;
@@ -957,6 +983,7 @@ async function detectServer() {
 }
 
 async function boot() {
+  syncSchedules(); // keep Android's alarms in step with the settings
   updateModelLabel();
   setState('idle');
   await detectServer();

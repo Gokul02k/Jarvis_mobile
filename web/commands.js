@@ -6,6 +6,8 @@
 // ctx: { settings, ui, signal, alert, ai(text) → Promise<reply> }
 
 import { runTool, screenAction, newsHeadlines, calendarEvents, dayBounds } from './tools.js';
+
+export const DAYS = { daily: [], weekdays: [2, 3, 4, 5, 6], weekends: [1, 7] };
 import { NATIVE, nativeSync } from './native.js';
 
 // ------------------------------------------------------------------ text helpers
@@ -163,6 +165,11 @@ export const BUILTINS = [
       pendingReply = { to, message, at: Date.now() };
       return `Reply to ${to}: “${message}”. Should I send it?`;
     } },
+
+  // ---- morning briefing (built on the phone: no AI)
+  { group: 'Briefing', examples: ['morning briefing', 'brief me'],
+    re: /^(?:(?:give me |read |play )?(?:my |the |a )?(?:morning |daily )?brief(?:ing)?|brief me|good morning)$/,
+    run: (m, ctx) => briefing(ctx) },
 
   // ---- phone
   { group: 'Phone', examples: ['flashlight on', 'turn off the torch'],
@@ -347,11 +354,42 @@ export const BUILTINS = [
     } },
 ];
 
+// ------------------------------------------------------------------ morning briefing
+
+export async function briefing(ctx) {
+  const s = ctx.settings, now = new Date(), h = now.getHours();
+  const parts = [`${h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}${s.userName ? `, ${s.userName}` : ''}. It's ${now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} on ${now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}.`];
+  const [weather, news] = await Promise.all([
+    runTool('get_weather', {}, ctx).catch(() => null),
+    s.briefingNews !== false && NATIVE ? newsHeadlines(s, '', ctx.signal, 3).catch(() => []) : [],
+  ]);
+  if (weather && !weather.error) {
+    const d = weather.forecast?.[0];
+    parts.push(`It's ${Math.round(weather.now.temp_c)} degrees and ${weather.now.conditions}${d ? `, ${Math.round(d.min_c)} to ${Math.round(d.max_c)} today${d.rain_chance_pct >= 40 ? `, with a ${d.rain_chance_pct} percent chance of rain` : ''}` : ''}.`);
+  }
+  if (NATIVE) {
+    const [, end] = dayBounds('today', 1);
+    const cal = calendarEvents(now, end);
+    if (!cal.error) {
+      parts.push(cal.events.length
+        ? `On your calendar: ${cal.events.slice(0, 4).map(e => `${e.title}${e.all_day ? '' : ` at ${new Date(e.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`}`).join(', ')}.`
+        : 'Your calendar is clear today.');
+    }
+    const n = nativeSync('notifications', '20');
+    if (n?.ok && n.count) {
+      const who = [...new Set(n.notifications.map(x => x.from || x.app))].slice(0, 3);
+      parts.push(`You have ${n.count} notification${n.count > 1 ? 's' : ''}${who.length ? `, including ${who.join(', ')}` : ''}.`);
+    }
+  }
+  if (news.length) parts.push(`In the news: ${news.map(x => x.title).join('. ')}.`);
+  return parts.join(' ');
+}
+
 // ------------------------------------------------------------------ your saved commands
 
 export const TEMPLATES = [
   { phrases: 'good night, going to sleep', actions: 'turn off the flashlight\nset an alarm for 6:30 am\nmute', reply: 'Good night! Alarm set for 6:30.' },
-  { phrases: 'good morning', actions: 'what time is it\nwhat\'s the weather\nbattery level', reply: '' },
+  { phrases: 'good morning', actions: 'morning briefing\nsay Have a great day!', reply: '', days: 'weekdays', at: '07:00' },
   { phrases: 'i\'m driving, driving mode', actions: 'open maps\nset volume to 80', reply: 'Drive safe.' },
   { phrases: 'movie time', actions: 'set volume to 70\nopen netflix', reply: 'Enjoy the movie.' },
 ];

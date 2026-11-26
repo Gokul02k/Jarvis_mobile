@@ -270,6 +270,25 @@
           </article>
 
           <article class="s-card wide">
+            <header class="s-head"><h3>Morning briefing</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Say “morning briefing” or “brief me” any time: the time, weather, today's calendar, your notifications and the top headlines. It's put together on the phone, without the AI. Schedule it to hear it automatically: the bubble reads it out, or you get a notification to tap if the bubble is off.</p>
+              <label class="switch android-only"><input data-key="briefingOn" type="checkbox"><i></i>
+                <span><b>Read it to me automatically</b><small>at the time below</small></span></label>
+              <div class="row android-only">
+                <label class="grow">Time <input data-key="briefingTime" type="time"></label>
+                <label class="grow">Days
+                  <select data-key="briefingDays">
+                    <option value="daily">Every day</option><option value="weekdays">Weekdays</option><option value="weekends">Weekends</option>
+                  </select></label>
+              </div>
+              <label class="switch"><input data-key="briefingNews" type="checkbox"><i></i>
+                <span><b>Include top headlines</b><small>from Google News</small></span></label>
+              <button type="button" id="btn-try-briefing" class="btn">Play it now</button>
+            </div>
+          </article>
+
+          <article class="s-card wide">
             <header class="s-head"><h3>Instant commands</h3><button type="button" class="info" aria-label="More info">i</button></header>
             <div class="s-body">
               <p class="s-more" hidden>These run on your phone in a split second without the AI, so they're fast, work when the AI is busy, and don't use your AI quota. Anything else — questions, messages, several steps at once — goes to the AI.</p>

@@ -13,12 +13,14 @@ class MainActivity : Activity() {
 
     companion object {
         const val EXTRA_TALK = "talk"
+        const val EXTRA_RUN = "run"
     }
 
     private lateinit var web: WebView
     private lateinit var bridge: JarvisBridge
     private var ready = false
     private var talkPending = false
+    private var runPending: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,9 +38,11 @@ class MainActivity : Activity() {
 
         bridge = JarvisBridge(this, web, activity = this)
         talkPending = intent?.getBooleanExtra(EXTRA_TALK, false) == true || intent?.action == Intent.ACTION_ASSIST
+        runPending = intent?.getStringExtra(EXTRA_RUN)
         WebSetup.configure(web, bridge, bubble = false) {
             ready = true
             if (talkPending) { talkPending = false; talk() }
+            runPending?.let { runPending = null; run(it) }
         }
     }
 
@@ -47,7 +51,11 @@ class MainActivity : Activity() {
         if (intent.getBooleanExtra(EXTRA_TALK, false) || intent.action == Intent.ACTION_ASSIST) {
             if (ready) talk() else talkPending = true
         }
+        intent.getStringExtra(EXTRA_RUN)?.let { if (ready) run(it) else runPending = it }
     }
+
+    private fun run(command: String) =
+        bridge.js("setTimeout(() => window.__jarvisRun && window.__jarvisRun(${org.json.JSONObject.quote(command)}), 600)")
 
     private fun talk() = bridge.js("setTimeout(() => window.__jarvisTalk && window.__jarvisTalk(), 400)")
 

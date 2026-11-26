@@ -11,6 +11,8 @@ import android.provider.Settings
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
+        // Android drops alarms on restart and app updates: register the scheduled commands again.
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) Scheduler.scheduleAll(ctx)
         val wanted = when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED -> Prefs.startOnBoot(ctx)
             Intent.ACTION_MY_PACKAGE_REPLACED -> Prefs.restartAfterUpdate(ctx).also { Prefs.setRestartAfterUpdate(ctx, false) }

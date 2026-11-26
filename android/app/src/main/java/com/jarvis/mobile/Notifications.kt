@@ -55,6 +55,29 @@ object Notifications {
             .build()
     }
 
+    /** A scheduled command while the bubble is off: tap to run it in the app. */
+    fun runPrompt(ctx: Context, id: String, label: String, command: String) {
+        channels(ctx)
+        if (ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
+            android.os.Build.VERSION.SDK_INT >= 33
+        ) return
+        val open = PendingIntent.getActivity(
+            ctx, 9000 + (id.hashCode() and 0xffff),
+            Intent(ctx, MainActivity::class.java).putExtra(MainActivity.EXTRA_RUN, command)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val n = NotificationCompat.Builder(ctx, CH_ALERTS)
+            .setSmallIcon(R.drawable.ic_stat_jarvis)
+            .setContentTitle(label.replaceFirstChar { it.uppercase() })
+            .setContentText("Tap to hear it")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(open)
+            .build()
+        ctx.getSystemService(NotificationManager::class.java).notify(9000 + (id.hashCode() and 0xffff), n)
+    }
+
     fun alert(ctx: Context, title: String, body: String) {
         channels(ctx)
         if (ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
