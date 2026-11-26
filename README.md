@@ -43,7 +43,13 @@ Everyday commands run **instantly on the phone**; everything else goes to the AI
 | 🗣️ **Your own commands** | Teach Jarvis a phrase (“good night”) and the steps to run, written in plain words |
 | 📱 **Screen control** | Voice-Access style: “go back”, “scroll down”, “tap Send”, “type …”, “read the screen”. The AI can read the screen to answer questions about it |
 | 🧠 **Any AI you like** | 10 providers, all keys in one list. If one is busy or out of quota, Jarvis can switch to another you have a key for |
-| 🛠️ **33 real actions** | A function-calling agent that chains steps by itself (*find contact → call*) |
+| 💬 **Replies instantly** | Answers stream in: Jarvis starts talking at the first sentence instead of waiting for the whole reply |
+| 🔔 **Notifications** | “Read my notifications”, “summarise my notifications”, “reply to Amma: coming in 10 minutes” (read back first, sent only after your yes) |
+| 🌐 **Web answers with sources** | Asks about news, prices or scores get a real answer from the web, with sources. It can also read and summarise a link |
+| 📅 **Your calendar** | “What's on today?”, “what's my next meeting?”, and new events saved straight to your calendar |
+| ☀️ **Morning briefing** | Time, weather, calendar, notifications and headlines, read out at a time you choose. Any of your commands can run on a schedule too |
+| 🧠 **Memory that builds up** | Remembers lasting things you mention (family, preferences, routines) and keeps short notes of older conversations |
+| 🛠️ **38 real actions** | A function-calling agent that chains steps by itself (*find contact → call*) |
 | 🎙️ **Touch or call** | Tap it to talk, or turn on the wake word and just say **“Jarvis, …”** |
 | 🌙 **Runs in the background** | Foreground service with a mic, so it keeps listening while you use other apps. Optional start on boot |
 | 🔄 **Updates itself** | Settings → About → **Update now** downloads the newest build from GitHub |
@@ -70,7 +76,7 @@ Everyday commands run **instantly on the phone**; everything else goes to the AI
         │
         ├─▶ one of your own commands?  ──▶ run its steps            (instant)
         ├─▶ a built-in phone command?  ──▶ do it on the phone        (instant, no AI)
-        └─▶ anything else              ──▶ ask the AI, which can use 33 actions
+        └─▶ anything else              ──▶ ask the AI, which can use 38 actions
 ```
 
 Anything handled on the phone shows an **instant** tag in the chat. Quiet actions (“go back”, “volume up”) just play a short chime.
@@ -84,8 +90,11 @@ Anything handled on the phone shows an **instant** tag in the chat. Quiet action
 | 🔦 **Phone** | “Flashlight on” · “Volume up” · “Set volume to 40” · “Mute” · “Battery level” · “What time is it” · “What's the date” · “Find my phone” · “Take a selfie” |
 | ⚙️ **Settings panels** | “Turn on Bluetooth” · “Wi-Fi on” · “Open location settings” *(Android only lets apps open these panels, not flip the switch)* |
 | 🎵 **Music** | “Pause” · “Resume” · “Next song” · “Play Believer on Spotify” |
-| 🗺️ **Web & maps** | “Search for cricket score” · “Navigate to the airport” · “What's the weather” · “Will it rain tomorrow” |
-| 📝 **Notes** | “Note buy milk” · “Read my notes” |
+| 🗺️ **Web & maps** | “Search for cricket score” · “Navigate to the airport” · “What's the weather” · “Will it rain tomorrow” · “What's the news” · “News about cricket” |
+| 🔔 **Notifications** | “Read my notifications” · “Messages from Amma” · “Reply to Amma coming in 10 minutes” → “Yes” |
+| 📅 **Calendar** | “What's on my calendar today” · “My schedule tomorrow” · “What's my next meeting” |
+| ☀️ **Briefing** | “Morning briefing” · “Brief me” |
+| 📝 **Notes & memory** | “Note buy milk” · “Read my notes” · “What do you remember about me” |
 | 🖐️ **Screen** | “Go back” · “Go home” · “Recent apps” · “Show notifications” · “Quick settings” · “Scroll down” · “Tap Send” · “Type hello” · “Read the screen” · “Lock the phone” · “Take a screenshot” |
 
 The AI handles questions, reminders, messages, several steps in one sentence (“open YouTube **and** play Believer”), calls where more than one contact matches, and other languages. You can switch instant commands off in **Settings → Commands**.
@@ -102,6 +111,20 @@ The AI handles questions, reminders, messages, several steps in one sentence (�
 
 Steps can be any built-in command, `say …` to speak, or `wait 2 seconds`. A step Jarvis can't do by itself is handed to the AI. Tap **Try it** to test.
 
+### ☀️ Morning briefing and scheduled commands
+
+Say **“morning briefing”** any time, or schedule it in **Settings → Commands → Morning briefing** (time, every day / weekdays / weekends, headlines on or off). It's put together on the phone without the AI: the time, weather, today's calendar, your notifications and the top headlines. Any of **your commands** can also *run automatically* at a time. When the bubble is running, Jarvis speaks it; otherwise you get a notification to tap.
+
+### 🔔 Notifications
+
+Turn on **Settings → Commands → Notifications** (Android's *Notification access*; on Android 13+ you may need *Allow restricted settings* first, as below). Then:
+
+- **“Read my notifications”** and **“messages from Amma”** are read out on the phone.
+- **“Summarise my notifications”** or **“anything important?”** go to the AI.
+- **“Reply to Amma: coming in 10 minutes”** → Jarvis reads it back and asks *“Should I send it?”*; only **“yes”** sends it, through the message's own reply button (WhatsApp, SMS, Telegram…).
+
+Jarvis looks at notifications only when you ask and never stores them.
+
 ### 📱 Screen control (like Voice Access)
 
 Lets Jarvis go back, go home, scroll, tap buttons by their name, type, and read the screen. The AI can also read the screen when you ask about it: *“what does this message say?”*, *“summarise this page”*. Jarvis only reads the screen when you ask.
@@ -112,7 +135,7 @@ Lets Jarvis go back, go home, scroll, tap buttons by their name, type, and read 
 
 ## 🗣️ What the AI can do
 
-Just say it naturally. The AI decides which of its 33 actions to use.
+Just say it naturally. The AI decides which of its 38 actions to use.
 
 | Category | Things you can say | Android app | Browser |
 |---|---|:-:|:-:|
@@ -124,7 +147,8 @@ Just say it naturally. The AI decides which of its 33 actions to use.
 | 🔊 **Volume** | “Volume to 30%” · “Mute ringtone” | ✅ | — |
 | ⏰ **Alarms & timers** | “Wake me up at 6:30 on weekdays” · “10-minute timer” | ✅ clock app | in-app timer |
 | 🔔 **Reminders** | “Remind me at 6 pm to buy milk” · “What are my reminders?” | ✅ notification | while open |
-| 📅 **Calendar** | “Add a meeting tomorrow at 3 pm” | ✅ | ✅ |
+| 📅 **Calendar** | “Add a meeting tomorrow at 3 pm” · “Am I free on Friday?” | ✅ saved directly | pre-filled |
+| 🔔 **Notifications** | “Summarise my notifications” · “Anything from the bank?” · “Reply to Rahul: on my way” | ✅ | — |
 | 🗺️ **Navigation** | “Navigate to the airport” · “Walk to the nearest ATM” | ✅ | ✅ |
 | 🌦️ **Weather** | “Will it rain tomorrow?” · “Weather in Chennai” | ✅ | ✅ |
 | 📍 **Location** | “Where am I?” | ✅ | ✅ |
@@ -135,9 +159,10 @@ Just say it naturally. The AI decides which of its 33 actions to use.
 | 📷 **Camera** | “Open the camera” · “Record a video” | ✅ | — |
 | 🔋 **Phone status** | “How much battery?” · “Am I on Wi-Fi?” | ✅ | partly |
 | 📳 **Find my phone** | “Vibrate” | ✅ | ✅ |
-| 🔎 **Search** | “Search the latest iPhone price” · “Show me pictures of Goa” | ✅ | ✅ |
+| 🔎 **Web answers** | “Who won the match yesterday?” · “Price of gold today” · “Summarise this link” | ✅ with sources | — |
+| 🔎 **Search** | “Show me pictures of Goa” (opens Google) | ✅ | ✅ |
 | 📝 **Notes & to-dos** | “Note: buy a charger” · “Read my notes” | ✅ | ✅ |
-| 🧠 **Memory** | “Remember my sister's birthday is 12 March” | ✅ | ✅ |
+| 🧠 **Memory** | “Remember my sister's birthday is 12 March” (or it just picks it up) | ✅ | ✅ |
 | 📋 **Clipboard & share** | “Copy that” · “Share this with…” | ✅ | ✅ |
 | 💡 **Questions & chat** | Facts, maths, translation, writing, advice… | ✅ | ✅ |
 | 🖥️ **PC tasks** | “Ask OpenJarvis to summarise my emails” | ✅ | ✅ |
@@ -176,9 +201,9 @@ Tabs: **General · Brain · Voice · Commands · Phone · About**. **Swipe left 
 | Tab | What's there |
 |---|---|
 | **General** | Your name, contacts, music app, memory |
-| **Brain** | AI provider, model, fallback, test connection, all API keys |
+| **Brain** | AI provider, model, fallback, test connection, all API keys, web search |
 | **Voice** | Wake word, language, voice, speed, beeps |
-| **Commands** | Your commands, the instant-command list, screen control |
+| **Commands** | Your commands (and their schedules), morning briefing, the instant-command list, notifications, screen control |
 | **Phone** | Permissions, background running, floating bubble, start on boot |
 | **About** | Updates and app info |
 
@@ -188,11 +213,11 @@ Tabs: **General · Brain · Voice · Commands · Phone · About**. **Swipe left 
 2. Open it and allow **Install unknown apps**.
 3. In Jarvis, open **⚙ Settings**:
    - **Brain → API keys:** add at least one key (Gemini, Groq and Mistral are free)
-   - **Phone → Grant permissions** (microphone, contacts, phone, location, notifications, display over other apps)
+   - **Phone → Grant permissions** (microphone, contacts, phone, location, calendar, notifications, display over other apps)
    - **Phone → Allow running in background** (so Android doesn't kill it)
    - **Start bubble** 🫧 (the blue button at the top of the home screen, or Settings → Phone)
 4. **Hands-free:** turn on **Listen for “Jarvis”** (Settings → Phone, or *Wake word* on the home screen), then just say *“Jarvis, …”*, no tap needed. Turn on **Voice → Keep the conversation going** to ask follow-ups without saying “Jarvis” again.
-5. *(Optional)* **Commands → Screen control**, **Start on boot**, and the **“Talk to Jarvis”** quick-settings tile.
+5. *(Optional)* **Commands → Notifications**, **Screen control** and **Morning briefing**, **Start on boot**, and the **“Talk to Jarvis”** quick-settings tile.
 
 **Updating:** Settings → About → **Check for updates → Update now**. Jarvis downloads the new build, Android asks you to confirm, and your settings, keys and memory are kept. A dot on ⚙ tells you when an update is ready. *(Builds made before in-app updates existed need one manual install from the release page.)*
 
@@ -243,9 +268,11 @@ In the app, either choose **Brain → OpenJarvis**, or keep another provider and
 │  MainActivity ─ WebView ───────┤ same web/   │  HTTPS  ├─ Grok · Groq · OpenRouter
 │                                │ code        ├────────▶├─ DeepSeek · Mistral · custom
 │  JarvisBridge (window.JarvisNative):         │         ├─ OpenJarvis (your PC)
-│   speech · TTS · HTTP · calls · contacts ·   │         ├─ Open-Meteo weather
-│   apps · alarms · torch · media · volume ·   │         └─ GitHub Releases (updates)
-│   settings · reminders · updates             │
+│   speech · TTS · HTTP + streaming · calls ·  │         ├─ Open-Meteo weather
+│   contacts · calendar · apps · alarms ·      │         ├─ Google News · Wikipedia · Tavily
+│   torch · media · volume · settings · updates│         └─ GitHub Releases (updates)
+│  NotifyService: read / reply notifications   │
+│  Scheduler: briefing + scheduled commands    │
 │  ScreenService (accessibility): back, home,  │
 │   scroll, tap, type, read the screen         │
 └──────────────────────────────────────────────┘
@@ -254,15 +281,17 @@ In the app, either choose **Brain → OpenJarvis**, or keep another provider and
 | Path | Purpose |
 |---|---|
 | `web/app.js` | Voice state machine, command routing, agent loop, settings UI |
-| `web/commands.js` | Instant on-phone commands and your saved commands |
-| `web/llm.js` | All AI providers (Gemini, Claude, OpenAI-compatible), retries and fallback |
-| `web/tools.js` | The 33 actions, with native versions when running in the app |
+| `web/commands.js` | Instant on-phone commands, the morning briefing and your saved commands |
+| `web/llm.js` | All AI providers (Gemini, Claude, OpenAI-compatible) with streaming, retries and fallback |
+| `web/tools.js` | The 38 actions (web search, calendar, notifications…), with native versions in the app |
 | `web/update.js` | In-app update check and install |
 | `web/buddy.js`, `buddy.css` | The animated face companion |
 | `web/native.js` | Bridge to Android (speech, HTTP, device controls) |
 | `android/…/BubbleService.kt` | Floating overlay, drag and snap, ✕ to close, foreground service |
 | `android/…/JarvisBridge.kt` | Native phone abilities exposed to the web code |
 | `android/…/ScreenService.kt` | Voice-Access-style screen control (accessibility service) |
+| `android/…/NotifyService.kt` | Reads notifications and replies to messages, on request |
+| `android/…/Scheduler.kt` | Runs the morning briefing and scheduled commands at set times |
 | `android/…/Updater.kt` | Downloads a new APK and opens Android's installer |
 | `android/…/Voice.kt` | Android SpeechRecognizer and TextToSpeech |
 | `server.py` | Optional PC server: HTTPS, API-key proxy, OpenJarvis relay |
@@ -281,7 +310,8 @@ In the app, either choose **Brain → OpenJarvis**, or keep another provider and
 - Voice is transcribed by your phone's speech service.
 - Instant and saved commands never leave the phone (except web searches, maps and weather, which open those services).
 - AI requests go only to the provider you choose (or the fallback provider you have a key for).
-- Screen text is read only when you ask, and is sent to the AI only when you ask the AI about it.
+- Screen text and notifications are read only when you ask, never stored, and sent to the AI only when you ask the AI about them. Replies are sent only after you say yes.
+- Long conversations are kept as short summaries on the phone (Settings → General → Memory → Forget everything clears them).
 - Keys, notes, memory, reminders and your commands stay on the device.
 
 ---

@@ -5,7 +5,7 @@
 //
 // ctx: { settings, ui, signal, alert, ai(text) → Promise<reply> }
 
-import { runTool, screenAction, newsHeadlines, calendarEvents, dayBounds } from './tools.js';
+import { runTool, screenAction, newsHeadlines, calendarEvents, dayBounds, store } from './tools.js';
 
 export const DAYS = { daily: [], weekdays: [2, 3, 4, 5, 6], weekends: [1, 7] };
 import { NATIVE, nativeSync } from './native.js';
@@ -314,6 +314,14 @@ export const BUILTINS = [
       const list = await newsHeadlines(ctx.settings, m[1], ctx.signal, 5).catch(() => []);
       if (!list.length) return 'I couldn\'t get the news right now.';
       return `${m[1] ? `News about ${m[1]}` : 'Top headlines'}. ${list.map(n => `${n.title}, from ${n.source}`).join('. ')}.`;
+    } },
+
+  // ---- memory
+  { group: 'Notes', examples: ['what do you remember about me'],
+    re: /^what do you (?:remember|know) about me$|^what have you remembered$/,
+    run: () => {
+      const mem = store.get('memory', []);
+      return mem.length ? `Here's what I remember: ${mem.join('. ')}.` : 'I don\'t know much about you yet. Tell me things like who your family are or what you like, and I\'ll remember.';
     } },
 
   // ---- notes

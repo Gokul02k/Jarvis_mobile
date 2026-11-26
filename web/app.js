@@ -440,20 +440,61 @@ function systemPrompt() {
     'Apps and links open automatically; if the phone blocks it, a card with an Open button appears – mention "tap Open" only if relevant.',
     'For times, interpret relative phrases ("in 10 minutes", "tomorrow at 9") using the current local time below and pass ISO local times.',
     'For current facts (news, scores, prices, recent events) or anything you are unsure about, use search_web and answer in a sentence or two, naming the source. To summarise a link or article, use read_webpage; for what is on the screen, read_screen.',
-    'Use the remember tool when the user tells you a lasting personal fact or preference.',
+    'Whenever the user mentions a lasting fact about themselves (people in their life, preferences, routines, places, important dates), save it with the remember tool without being asked and without announcing it.',
     NATIVE ? 'You can see and control the phone screen: use read_screen when the user asks about what is on their screen (read, summarise, explain, reply to a message), and screen_action to go back, scroll, tap a button by its label or type text.' : '',
     NATIVE ? 'You can read notifications with read_notifications (to summarise them, say what is important, or find messages from someone) and reply to chat messages with reply_to_message, but only after reading the reply back and getting a yes.' : '',
     `Current local time: ${now.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`,
     memory.length ? `What you remember about the user:\n- ${memory.join('\n- ')}` : '',
+    (() => { const sm = store.get('summaries', []).slice(-6); return sm.length ? `Earlier conversations (oldest first):\n- ${sm.map(x => `${x.at}: ${x.text}`).join('\n- ')}` : ''; })(),
   ].filter(Boolean).join('\n');
 }
 
+// Keeps the conversation short. Older turns aren't thrown away: they're squeezed into a short summary
+// (plus any lasting facts about the user), about once every 10 exchanges.
+let summarising = false;
 function trimHistory() {
-  const MAX = 30;
-  if (history.length > MAX) history = history.slice(-MAX);
+  const MAX = 40, KEEP = 20;
+  if (history.length > MAX && !summarising) {
+    let cut = history.length - KEEP;
+    while (cut < history.length && history[cut].role !== 'user') cut++; // keep whole exchanges together
+    const old = history.slice(0, cut);
+    history = history.slice(cut);
+    summariseOld(old);
+  }
+  if (history.length > MAX * 2) history = history.slice(-MAX);
   // never start with an orphaned tool result / tool call
   while (history.length && history[0].role !== 'user') history.shift();
   try { store.set('history', history); } catch { }
+}
+
+async function summariseOld(messages) {
+  const transcript = messages
+    .map(m => m.role === 'user' ? `User: ${m.content}` : m.role === 'assistant' && m.content ? `Jarvis: ${m.content}`
+      : m.role === 'assistant' && m.toolCalls?.length ? `(Jarvis used: ${m.toolCalls.map(t => t.name).join(', ')})` : '')
+    .filter(Boolean).join('\n').slice(-6000);
+  if (!transcript) return;
+  summarising = true;
+  try {
+    const res = await chat({ ...settings, fallbackProviders: true }, {
+      system: 'You keep the long-term memory of a personal voice assistant.',
+      messages: [{ role: 'user', content: `Conversation:\n${transcript}\n\nReply with JSON only: {"summary": "2-3 sentences: what the user asked for and anything worth recalling later", "facts": ["lasting facts about the user worth remembering: names of people, preferences, routines, places, important dates; [] if none"]}` }],
+      tools: [],
+    });
+    const json = JSON.parse((res.text.match(/\{[\s\S]*\}/) || ['{}'])[0]);
+    if (json.summary) {
+      const summaries = store.get('summaries', []);
+      summaries.push({ at: new Date().toISOString().slice(0, 10), text: String(json.summary).slice(0, 500) });
+      store.set('summaries', summaries.slice(-12));
+    }
+    const facts = (json.facts || []).map(String).filter(f => f.length > 3 && f.length < 200);
+    if (facts.length) {
+      const mem = store.get('memory', []);
+      for (const f of facts) if (!mem.some(m => m.toLowerCase() === f.toLowerCase())) mem.push(f);
+      store.set('memory', mem.slice(-100));
+    }
+  } catch { /* memory is best-effort: never bother the user about it */ } finally {
+    summarising = false;
+  }
 }
 
 function updateModelLabel() {
@@ -616,7 +657,9 @@ function syncForm() {
   $('#rate-out').textContent = `${Number(settings.rate).toFixed(2)}×`;
   syncProviderUI();
   const mem = store.get('memory', []);
-  $('#memory-view').textContent = mem.length ? `Remembered: ${mem.join(' · ')}` : 'Jarvis hasn\'t memorised anything about you yet.';
+  const sums = store.get('summaries', []);
+  $('#memory-view').textContent = (mem.length ? `Remembered: ${mem.join(' · ')}` : 'Jarvis hasn\'t memorised anything about you yet.')
+    + (sums.length ? ` — plus short notes from ${sums.length} earlier conversation${sums.length > 1 ? 's' : ''}.` : '');
   $('#btn-notify').textContent = window.Notification?.permission === 'granted' ? 'Notifications allowed ✓' : 'Allow notifications';
 }
 
@@ -942,7 +985,7 @@ $('#btn-clear-chat').addEventListener('click', () => {
 });
 $('#btn-clear-mem').addEventListener('click', () => {
   if (!confirm('Forget all remembered facts, notes and reminders?')) return;
-  store.set('memory', []); store.set('notes', []); store.set('reminders', []);
+  store.set('memory', []); store.set('notes', []); store.set('reminders', []); store.set('summaries', []);
   syncForm();
 });
 
