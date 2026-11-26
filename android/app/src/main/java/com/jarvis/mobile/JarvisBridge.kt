@@ -482,6 +482,87 @@ class JarvisBridge(
         start(intent)
     }
 
+    // ================================================================== calendar (the phone's own calendars)
+
+    @JavascriptInterface
+    fun calendarEvents(fromMillis: String, toMillis: String): String {
+        if (!has(Manifest.permission.READ_CALENDAR)) return fail("needs_permission")
+        val from = fromMillis.toLongOrNull() ?: return fail("Bad time")
+        val to = toMillis.toLongOrNull() ?: return fail("Bad time")
+        val arr = JSONArray()
+        try {
+            val uri = android.provider.CalendarContract.Instances.CONTENT_URI.buildUpon()
+                .appendPath(from.toString()).appendPath(to.toString()).build()
+            ctx.contentResolver.query(
+                uri,
+                arrayOf(
+                    android.provider.CalendarContract.Instances.TITLE,
+                    android.provider.CalendarContract.Instances.BEGIN,
+                    android.provider.CalendarContract.Instances.END,
+                    android.provider.CalendarContract.Instances.ALL_DAY,
+                    android.provider.CalendarContract.Instances.EVENT_LOCATION,
+                    android.provider.CalendarContract.Instances.CALENDAR_DISPLAY_NAME,
+                ),
+                "${android.provider.CalendarContract.Instances.VISIBLE} = 1", null,
+                "${android.provider.CalendarContract.Instances.BEGIN} ASC",
+            )?.use { c ->
+                while (c.moveToNext() && arr.length() < 40) {
+                    arr.put(JSONObject()
+                        .put("title", c.getString(0) ?: "(no title)")
+                        .put("start", c.getLong(1)).put("end", c.getLong(2))
+                        .put("all_day", c.getInt(3) == 1)
+                        .put("location", c.getString(4) ?: "")
+                        .put("calendar", c.getString(5) ?: ""))
+                }
+            }
+        } catch (e: Exception) {
+            return fail("Couldn't read the calendar: ${e.message}")
+        }
+        return JSONObject().put("ok", true).put("events", arr).toString()
+    }
+
+    @JavascriptInterface
+    fun calendarAdd(title: String, startMillis: String, endMillis: String, location: String, allDay: String): String {
+        if (!has(Manifest.permission.WRITE_CALENDAR)) return fail("needs_permission")
+        val start = startMillis.toLongOrNull() ?: return fail("Bad time")
+        val end = endMillis.toLongOrNull() ?: (start + 3_600_000)
+        return try {
+            // The primary writable calendar (usually your Google account's).
+            var calId = -1L
+            ctx.contentResolver.query(
+                android.provider.CalendarContract.Calendars.CONTENT_URI,
+                arrayOf(android.provider.CalendarContract.Calendars._ID, android.provider.CalendarContract.Calendars.IS_PRIMARY),
+                "${android.provider.CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL} >= ${android.provider.CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR} AND ${android.provider.CalendarContract.Calendars.VISIBLE} = 1",
+                null, "${android.provider.CalendarContract.Calendars.IS_PRIMARY} DESC",
+            )?.use { c -> if (c.moveToFirst()) calId = c.getLong(0) }
+            if (calId < 0) return fail("No calendar on this phone that I can add to.")
+            val allDayEvent = allDay == "true"
+            val tz = if (allDayEvent) "UTC" else java.util.TimeZone.getDefault().id
+            val values = android.content.ContentValues().apply {
+                put(android.provider.CalendarContract.Events.CALENDAR_ID, calId)
+                put(android.provider.CalendarContract.Events.TITLE, title)
+                put(android.provider.CalendarContract.Events.DTSTART, start)
+                put(android.provider.CalendarContract.Events.DTEND, end)
+                put(android.provider.CalendarContract.Events.ALL_DAY, if (allDayEvent) 1 else 0)
+                put(android.provider.CalendarContract.Events.EVENT_TIMEZONE, tz)
+                if (location.isNotBlank()) put(android.provider.CalendarContract.Events.EVENT_LOCATION, location)
+            }
+            val uri = ctx.contentResolver.insert(android.provider.CalendarContract.Events.CONTENT_URI, values)
+                ?: return fail("The calendar didn't accept the event.")
+            val eventId = uri.lastPathSegment?.toLongOrNull() ?: -1
+            if (eventId > 0 && !allDayEvent) {
+                ctx.contentResolver.insert(android.provider.CalendarContract.Reminders.CONTENT_URI, android.content.ContentValues().apply {
+                    put(android.provider.CalendarContract.Reminders.EVENT_ID, eventId)
+                    put(android.provider.CalendarContract.Reminders.MINUTES, 10)
+                    put(android.provider.CalendarContract.Reminders.METHOD, android.provider.CalendarContract.Reminders.METHOD_ALERT)
+                })
+            }
+            ok("id" to eventId)
+        } catch (e: Exception) {
+            fail("Couldn't add the event: ${e.message}")
+        }
+    }
+
     // ================================================================== notifications
 
     @JavascriptInterface
@@ -527,6 +608,8 @@ class JarvisBridge(
             Manifest.permission.CALL_PHONE,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.READ_CALENDAR,
+            Manifest.permission.WRITE_CALENDAR,
         )
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
         val missing = perms.filter { !has(it) }

@@ -239,6 +239,36 @@ function showSources(ctx, sources) {
   ctx.ui.card('Sources', '', sources.slice(0, 4).map(s => ({ label: (s.title || new URL(s.url).hostname).slice(0, 40), href: s.url })));
 }
 
+// ------------------------------------------------------------------ calendar
+
+const CAL_PERMISSION = 'Calendar access isn\'t allowed yet. Open Settings → Phone → Grant permissions and allow Calendar.';
+
+function dayBounds(when = 'today', days = 1) {
+  const d = new Date();
+  if (/tomorrow/i.test(when)) d.setDate(d.getDate() + 1);
+  else if (/^\d{4}-\d\d-\d\d/.test(when)) { const [y, m, dd] = when.slice(0, 10).split('-').map(Number); d.setFullYear(y, m - 1, dd); }
+  d.setHours(0, 0, 0, 0);
+  const end = new Date(d); end.setDate(end.getDate() + Math.max(1, Math.min(14, days)));
+  return [d, end];
+}
+
+/** Events between two dates from the phone's calendars, or { error }. */
+export function calendarEvents(from, to) {
+  const r = nativeSync('calendarEvents', String(from.getTime()), String(to.getTime()));
+  if (!r) return { error: 'Calendar needs the Android app.' };
+  if (r.error === 'needs_permission') return { error: CAL_PERMISSION, needsPermission: true };
+  if (!r.ok) return { error: r.error };
+  return {
+    events: r.events.map(e => ({
+      title: e.title,
+      when: e.all_day ? `${new Date(e.start).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}, all day`
+        : `${new Date(e.start).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })} – ${new Date(e.end).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`,
+      start: e.start, all_day: e.all_day, location: e.location || undefined,
+    })),
+  };
+}
+export { dayBounds };
+
 export const TOOLS = [
   {
     name: 'get_datetime',
@@ -519,8 +549,15 @@ export const TOOLS = [
     },
   },
   {
+    name: 'get_calendar',
+    description: "Read the user's calendar (all calendars on the phone, including Google Calendar): today's or tomorrow's schedule, a given date, or the next few days.",
+    parameters: obj({ date: S('"today", "tomorrow" or a date YYYY-MM-DD (default today)'), days: N('How many days from that date (default 1, max 14)') }),
+    available: nativeOnly,
+    run: ({ date = 'today', days = 1 }) => { const [a, b] = dayBounds(date, days); return calendarEvents(a, b); },
+  },
+  {
     name: 'add_calendar_event',
-    description: 'Create a Google Calendar event (opens a pre-filled event for the user to save).',
+    description: "Add an event to the user's calendar (saved directly in the Android app, with a 10-minute reminder; a pre-filled Google Calendar page in the browser).",
     parameters: obj({
       title: S('Event title'),
       start: S('Local start date-time ISO, e.g. 2026-11-24T15:00'),
@@ -531,6 +568,14 @@ export const TOOLS = [
     run: ({ title, start, end, location = '', details = '' }, ctx) => {
       const s = parseWhen(start);
       const e = end ? parseWhen(end) : new Date(s.getTime() + 3600000);
+      if (NATIVE) {
+        const allDay = !/T\d/.test(start);
+        const r = allDay
+          ? nativeSync('calendarAdd', title, String(Date.UTC(s.getFullYear(), s.getMonth(), s.getDate())), String(Date.UTC(s.getFullYear(), s.getMonth(), s.getDate() + 1)), location, 'true')
+          : nativeSync('calendarAdd', title, String(s.getTime()), String(e.getTime()), location, 'false');
+        if (r?.ok) return { ok: true, saved: `${title}, ${allDay ? s.toDateString() : s.toLocaleString()}` };
+        // No calendar permission (or no calendar): fall back to the pre-filled page below.
+      }
       const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}` +
         `&dates=${gcalStamp(s)}/${gcalStamp(e)}&location=${encodeURIComponent(location)}&details=${encodeURIComponent(details)}` +
         `&ctz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`;

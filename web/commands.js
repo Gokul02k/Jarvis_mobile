@@ -5,7 +5,7 @@
 //
 // ctx: { settings, ui, signal, alert, ai(text) → Promise<reply> }
 
-import { runTool, screenAction, newsHeadlines } from './tools.js';
+import { runTool, screenAction, newsHeadlines, calendarEvents, dayBounds } from './tools.js';
 import { NATIVE, nativeSync } from './native.js';
 
 // ------------------------------------------------------------------ text helpers
@@ -236,6 +236,29 @@ export const BUILTINS = [
       if (!sec) return null;
       const r = await runTool('set_timer', { seconds: sec }, ctx);
       return r?.error ? r.error : `Timer set for ${durationText(sec)}.`;
+    } },
+
+  // ---- calendar
+  { group: 'Calendar', examples: ['what\'s on my calendar today', 'my schedule tomorrow', 'what\'s my next meeting'], native: true,
+    re: /^(?:what(?:'s| is) (?:on )?(?:my )?(?:calendar|schedule|agenda)|(?:my|show my|read my) (?:calendar|schedule|agenda)|do i have (?:any )?(?:meetings?|events?|plans|anything))(?: for| on)?(?: (today|tomorrow|this week))?$/,
+    run: (m) => {
+      const when = m[1] || 'today';
+      const [a, b] = when === 'this week' ? dayBounds('today', 7) : dayBounds(when, 1);
+      const r = calendarEvents(when === 'today' ? new Date() : a, b);
+      if (r.error) return r.error;
+      if (!r.events.length) return `Nothing on your calendar ${when === 'this week' ? 'this week' : when}.`;
+      const list = r.events.slice(0, 6).map(e => `${e.title}, ${e.all_day ? 'all day' : new Date(e.start).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}${when === 'this week' ? ` on ${new Date(e.start).toLocaleDateString(undefined, { weekday: 'long' })}` : ''}`);
+      return `${r.events.length === 1 ? 'One event' : `${r.events.length} events`} ${when}: ${list.join('. ')}.`;
+    } },
+  { group: 'Calendar', native: true, re: /^(?:what(?:'s| is) )?(?:my )?next (?:meeting|event|appointment)(?: today)?$|^what(?:'s| is) next(?: on my calendar)?$/,
+    run: () => {
+      const [, b] = dayBounds('today', 7);
+      const r = calendarEvents(new Date(), b);
+      if (r.error) return r.error;
+      const e = r.events.find(x => !x.all_day && x.start > Date.now()) || r.events[0];
+      if (!e) return 'Nothing coming up this week.';
+      const mins = Math.round((e.start - Date.now()) / 60000);
+      return `Next: ${e.title}, ${mins > 0 && mins < 90 ? `in ${mins} minutes` : e.when}${e.location ? `, at ${e.location}` : ''}.`;
     } },
 
   // ---- media
