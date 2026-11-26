@@ -439,6 +439,7 @@ function systemPrompt() {
     'When you need live facts (news, scores, prices) and have no tool for it, give your best knowledge and offer to search.',
     'Use the remember tool when the user tells you a lasting personal fact or preference.',
     NATIVE ? 'You can see and control the phone screen: use read_screen when the user asks about what is on their screen (read, summarise, explain, reply to a message), and screen_action to go back, scroll, tap a button by its label or type text.' : '',
+    NATIVE ? 'You can read notifications with read_notifications (to summarise them, say what is important, or find messages from someone) and reply to chat messages with reply_to_message, but only after reading the reply back and getting a yes.' : '',
     `Current local time: ${now.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`,
     memory.length ? `What you remember about the user:\n- ${memory.join('\n- ')}` : '',
   ].filter(Boolean).join('\n');
@@ -689,7 +690,7 @@ function showTab(name, dir) {
   tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   form.querySelector('.settings-body').scrollTop = 0;
   if (tab.dataset.tab === 'about') refreshAbout();
-  if (tab.dataset.tab === 'commands') { renderCustom(); refreshScreenState(); }
+  if (tab.dataset.tab === 'commands') { renderCustom(); refreshScreenState(); refreshNotifyState(); }
   try { localStorage.setItem('jarvis.settingsTab', tab.dataset.tab); } catch { }
 }
 // Swipe left / right inside Settings to move between tabs.
@@ -812,6 +813,20 @@ $('#cmd-templates').addEventListener('click', (e) => {
   saveSettings(); renderCustom(true);
 });
 
+function refreshNotifyState() {
+  if (!NATIVE) return;
+  const st = nativeSync('notifyState') || {};
+  const box = $('#notify-status');
+  const [tone, title, detail, btn] = st.enabled && st.connected
+    ? ['ok', 'On', 'try “read my notifications” or “summarise my notifications”', 'Notification access settings']
+    : st.enabled ? ['busy', 'Starting…', 'Android is connecting Jarvis; this takes a moment', 'Notification access settings']
+      : ['idle', 'Off', 'turn it on so Jarvis can read and reply to notifications', 'Turn on notification access'];
+  box.dataset.tone = tone;
+  $('#notify-title').textContent = title;
+  $('#notify-detail').textContent = detail;
+  $('#btn-notify-on').textContent = btn;
+}
+
 function refreshScreenState() {
   if (!NATIVE) return;
   const st = nativeSync('screenState') || {};
@@ -827,8 +842,9 @@ function refreshScreenState() {
 }
 if (NATIVE) {
   $('#btn-screen-on').addEventListener('click', () => NATIVE.openScreenSetup('accessibility'));
+  $('#btn-notify-on').addEventListener('click', () => NATIVE.openNotifyAccess());
   $('#btn-app-info').addEventListener('click', () => NATIVE.openScreenSetup('app_info'));
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && dialog.open) refreshScreenState(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && dialog.open) { refreshScreenState(); refreshNotifyState(); } });
 }
 
 // Show the cleaned-up key once the field is left.

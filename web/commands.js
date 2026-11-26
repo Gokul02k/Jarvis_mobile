@@ -77,6 +77,20 @@ const SETTING_PAGES = [
   [/apps?/, 'apps', 'apps'], [/date|time/, 'date_time', 'date and time'],
 ];
 
+// ------------------------------------------------------------------ notifications
+
+// A reply waiting for "yes" (Jarvis always reads it back first).
+let pendingReply = null;
+
+function notifState(r) {
+  if (r?.needsSetup) return 'Notification access is off. Turn it on in Settings, under Commands.';
+  return null;
+}
+
+function speakNotifications(list) {
+  return list.map(n => `${n.app}${n.from && n.from !== n.app ? `, ${n.from}` : ''}: ${n.text || 'new notification'}`).join('. ');
+}
+
 // ------------------------------------------------------------------ built-in commands
 // run(m, ctx, text) → string to say ('' = handled quietly), null to let the AI handle it,
 // or undefined when it isn't this command after all (keep looking).
@@ -113,6 +127,41 @@ export const BUILTINS = [
       if (r?.needsSetup) return 'Screen control is off. Turn it on in Settings, under Commands.';
       if (!r?.ok) return r?.error || 'I couldn\'t read the screen.';
       return r.text ? r.text : 'There\'s no text on the screen.';
+    } },
+
+  // ---- notifications
+  { group: 'Notifications', native: true, re: /^(yes|yeah|yep|send( it)?|ok(ay)? send( it)?|go ahead|sure)$/,
+    run: () => {
+      if (!pendingReply || Date.now() - pendingReply.at > 90_000) return undefined; // not a reply confirmation
+      const { to, message } = pendingReply; pendingReply = null;
+      const r = nativeSync('notifyReply', to, message);
+      return notifState(r) || (r?.ok ? `Sent to ${r.to}.` : r?.error || 'I couldn\'t send it.');
+    } },
+  { group: 'Notifications', native: true, re: /^(no|nope|don't send( it)?|cancel( it)?|don't)$/,
+    run: () => { if (!pendingReply) return undefined; pendingReply = null; return 'Okay, not sent.'; } },
+  { group: 'Notifications', examples: ['read my notifications', 'messages from Amma', 'reply to Amma coming in 10 minutes'], native: true,
+    re: /^(?:read|check|show|what are|any)(?: me)?(?: my| the)?(?: new)? notifications?(?: please)?$|^do i have any (?:new )?notifications$/,
+    run: () => {
+      const r = nativeSync('notifications', '8');
+      const off = notifState(r); if (off) return off;
+      const list = r?.notifications || [];
+      if (!list.length) return 'No new notifications.';
+      return `${list.length === 1 ? 'One notification' : `${r.count} notifications`}. ${speakNotifications(list)}.`;
+    } },
+  { group: 'Notifications', native: true, re: /^(?:read|any|show|check)(?: me)?(?: my| the)?(?: new)? (?:messages?|notifications?|texts?) from (.+)$/,
+    run: (m) => {
+      const r = nativeSync('notifications', '40');
+      const off = notifState(r); if (off) return off;
+      const who = m[1].toLowerCase();
+      const list = (r?.notifications || []).filter(n => `${n.from} ${n.app}`.toLowerCase().includes(who));
+      return list.length ? speakNotifications(list) + '.' : `No messages from ${m[1]}.`;
+    } },
+  { group: 'Notifications', native: true,
+    re: /^(?:reply|respond|answer)(?: back)? to (.+?)(?:\s*:\s*|\s+(?:saying|that|with)\s+)(.+)$|^(?:reply|respond|answer)(?: back)? to (\S+) (.+)$/,
+    run: (m) => {
+      const to = m[1] || m[3], message = m[2] || m[4];
+      pendingReply = { to, message, at: Date.now() };
+      return `Reply to ${to}: “${message}”. Should I send it?`;
     } },
 
   // ---- phone

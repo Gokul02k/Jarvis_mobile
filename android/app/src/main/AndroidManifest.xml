@@ -90,6 +90,17 @@
 
         <receiver android:name=".ReminderReceiver" android:exported="false" />
 
+        <!-- Reads / replies to notifications when asked (the user grants Notification access). -->
+        <service
+            android:name=".NotifyService"
+            android:exported="true"
+            android:label="@string/notify_service_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- Voice-Access-style screen control (the user enables it in Accessibility settings). -->
         <service
             android:name=".ScreenService"

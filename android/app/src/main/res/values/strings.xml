@@ -3,4 +3,5 @@
     <string name="tile_label">Talk to Jarvis</string>
     <string name="screen_service_label">Jarvis screen control</string>
     <string name="screen_service_desc">Lets you control the phone by voice with Jarvis: go back, go home, scroll, tap buttons by name, type, and read the screen aloud. Jarvis only reads the screen when you ask it to.</string>
+    <string name="notify_service_label">Jarvis notifications</string>
 </resources>

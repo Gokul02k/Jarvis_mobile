@@ -270,6 +270,18 @@
           </article>
 
           <article class="s-card wide android-only">
+            <header class="s-head"><h3>Notifications</h3><button type="button" class="info" aria-label="More info">i</button></header>
+            <div class="s-body">
+              <p class="s-more" hidden>Jarvis can read your notifications aloud, tell you what's important, and reply to messages. It looks at them only when you ask, never stores them, and sends them to the AI only when you ask the AI about them. Replies are always read back to you first.</p>
+              <div class="update-status" id="notify-status" data-tone="idle">
+                <span class="upd-dot"></span>
+                <span><b id="notify-title">Off</b><small id="notify-detail">turn it on so Jarvis can read and reply to notifications</small></span>
+              </div>
+              <button type="button" id="btn-notify-on" class="btn">Turn on notification access</button>
+            </div>
+          </article>
+
+          <article class="s-card wide android-only">
             <header class="s-head"><h3>Screen control</h3><button type="button" class="info" aria-label="More info">i</button></header>
             <div class="s-body">
               <p class="s-more" hidden>Like Android's Voice Access: Jarvis can go back, go home, scroll, tap buttons by their name, type into text boxes and read the screen aloud. The AI can also read the screen when you ask about it (“what does this message say?”). Jarvis only reads the screen when you ask.</p>

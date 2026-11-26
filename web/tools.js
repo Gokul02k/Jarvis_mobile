@@ -573,6 +573,20 @@ export const TOOLS = [
     run: ({ video }) => nativeSync('camera', String(!!video)) || { error: 'No camera app' },
   },
   {
+    name: 'read_notifications',
+    description: "Read the phone's current notifications (app, sender/title, text, minutes ago, whether you can reply). Use to summarise notifications, find what's important, or answer questions like 'any messages from Rahul?'.",
+    parameters: obj({ max: N('How many, newest first (default 30)') }),
+    available: nativeOnly,
+    run: ({ max = 30 }) => nativeSync('notifications', String(max)) || { error: 'Not available' },
+  },
+  {
+    name: 'reply_to_message',
+    description: 'Reply to a chat message notification (WhatsApp, SMS, Telegram…) by sender name. IMPORTANT: first read the exact reply back to the user and only call this after they say yes.',
+    parameters: obj({ to: S('Sender or chat name as shown in the notification'), message: S('The reply text') }, ['to', 'message']),
+    available: nativeOnly,
+    run: ({ to, message }) => nativeSync('notifyReply', to, message) || { error: 'Not available' },
+  },
+  {
     name: 'read_screen',
     description: 'Read the text currently shown on the phone screen (the app under Jarvis). Use when the user asks you to read, summarise, explain or answer something about what is on their screen, e.g. a message, article or page.',
     parameters: obj({}),

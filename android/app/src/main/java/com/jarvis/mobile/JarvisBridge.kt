@@ -482,6 +482,18 @@ class JarvisBridge(
         start(intent)
     }
 
+    // ================================================================== notifications
+
+    @JavascriptInterface
+    fun notifyState(): String = JSONObject()
+        .put("enabled", NotifyService.isEnabled(ctx))
+        .put("connected", NotifyService.instance != null)
+        .toString()
+
+    @JavascriptInterface fun notifications(max: String): String = NotifyService.list(max.toIntOrNull() ?: 30)
+    @JavascriptInterface fun notifyReply(to: String, message: String): String = NotifyService.reply(to, message)
+    @JavascriptInterface fun openNotifyAccess() { start(NotifyService.settingsIntent(ctx)) }
+
     // ================================================================== app updates
 
     @JavascriptInterface fun appInfo(): String = Updater.info(ctx).toString()
